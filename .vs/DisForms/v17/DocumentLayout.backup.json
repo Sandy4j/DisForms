@@ -3,8 +3,16 @@
   "WorkspaceRootPath": "C:\\NativeProject\\DisForms\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{65120454-4F8E-4224-8C60-64E296DE50BA}|DisServer\\DisServer.csproj|c:\\nativeproject\\disforms\\disserver\\server.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{65120454-4F8E-4224-8C60-64E296DE50BA}|DisServer\\DisServer.csproj|solutionrelative:disserver\\server.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{65120454-4F8E-4224-8C60-64E296DE50BA}|DisServer\\DisServer.csproj|c:\\nativeproject\\disforms\\disserver\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{65120454-4F8E-4224-8C60-64E296DE50BA}|DisServer\\DisServer.csproj|solutionrelative:disserver\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{65120454-4F8E-4224-8C60-64E296DE50BA}|DisServer\\DisServer.csproj|c:\\nativeproject\\disforms\\disserver\\clienthandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{65120454-4F8E-4224-8C60-64E296DE50BA}|DisServer\\DisServer.csproj|solutionrelative:disserver\\clienthandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -14,23 +22,53 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 4,
           "Children": [
             {
-              "$type": "Bookmark",
-              "Name": "ST:128:0:{75188d03-9892-4ae2-abf1-207126247ce5}"
-            },
-            {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "Program.cs",
               "DocumentMoniker": "C:\\NativeProject\\DisForms\\DisServer\\Program.cs",
               "RelativeDocumentMoniker": "DisServer\\Program.cs",
               "ToolTip": "C:\\NativeProject\\DisForms\\DisServer\\Program.cs",
               "RelativeToolTip": "DisServer\\Program.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAAAXAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-09-18T16:54:55.518Z",
+              "WhenOpened": "2025-09-18T17:22:12.675Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{75188d03-9892-4ae2-abf1-207126247ce5}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "ClientHandler.cs",
+              "DocumentMoniker": "C:\\NativeProject\\DisForms\\DisServer\\ClientHandler.cs",
+              "RelativeDocumentMoniker": "DisServer\\ClientHandler.cs",
+              "ToolTip": "C:\\NativeProject\\DisForms\\DisServer\\ClientHandler.cs",
+              "RelativeToolTip": "DisServer\\ClientHandler.cs",
+              "ViewState": "AgIAABcAAAAAAAAAAAAgwDQAAAANAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-18T17:17:42.159Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Server.cs",
+              "DocumentMoniker": "C:\\NativeProject\\DisForms\\DisServer\\Server.cs",
+              "RelativeDocumentMoniker": "DisServer\\Server.cs",
+              "ToolTip": "C:\\NativeProject\\DisForms\\DisServer\\Server.cs",
+              "RelativeToolTip": "DisServer\\Server.cs",
+              "ViewState": "AgIAAAYAAAAAAAAAAAAAABEAAABCAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-18T17:16:54.815Z",
               "EditorCaption": ""
             }
           ]
