@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "1 on 1",
+    "Projects": [
+      {
+        "Path": "DisClient\\DisClient.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "DisServer\\DisServer.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

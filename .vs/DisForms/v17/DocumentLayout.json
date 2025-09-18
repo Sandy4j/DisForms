@@ -3,13 +3,8 @@
   "WorkspaceRootPath": "C:\\NativeProject\\DisForms\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{7EE2E698-AD8D-485B-A88D-BAD02EEF7FB7}|..\\DisClient\\DisClient.csproj|c:\\nativeproject\\disclient\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{00000000-0000-0000-0000-000000000000}|\u003CSolution\u003E|DisServer||{04B8AB82-A572-4FEF-95CE-5222444B6B64}|"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{ADECFB2F-1385-4BE5-ADD1-3DADA0A6E47C}|..\\DisServer\\DisServer.csproj|c:\\nativeproject\\disserver\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
+      "AbsoluteMoniker": "D:0:0:{65120454-4F8E-4224-8C60-64E296DE50BA}|DisServer\\DisServer.csproj|c:\\nativeproject\\disforms\\disserver\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{65120454-4F8E-4224-8C60-64E296DE50BA}|DisServer\\DisServer.csproj|solutionrelative:disserver\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -19,45 +14,28 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 2,
           "Children": [
             {
               "$type": "Bookmark",
               "Name": "ST:128:0:{75188d03-9892-4ae2-abf1-207126247ce5}"
             },
             {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "Form1.cs [Design]",
-              "DocumentMoniker": "C:\\NativeProject\\DisClient\\Form1.cs",
-              "RelativeDocumentMoniker": "..\\DisClient\\Form1.cs",
-              "ToolTip": "C:\\NativeProject\\DisClient\\Form1.cs [Design]",
-              "RelativeToolTip": "..\\DisClient\\Form1.cs [Design]",
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\NativeProject\\DisForms\\DisServer\\Program.cs",
+              "RelativeDocumentMoniker": "DisServer\\Program.cs",
+              "ToolTip": "C:\\NativeProject\\DisForms\\DisServer\\Program.cs",
+              "RelativeToolTip": "DisServer\\Program.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-09-18T12:55:23.505Z",
-              "EditorCaption": " [Design]"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "DisServer",
-              "DocumentMoniker": "C:\\NativeProject\\DisServer\\DisServer.csproj",
-              "RelativeDocumentMoniker": "..\\DisServer\\DisServer.csproj",
-              "ToolTip": "C:\\NativeProject\\DisServer\\DisServer.csproj",
-              "RelativeToolTip": "..\\DisServer\\DisServer.csproj",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
-              "WhenOpened": "2025-09-18T12:54:22.815Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "Form1.cs [Design]",
-              "DocumentMoniker": "C:\\NativeProject\\DisServer\\Form1.cs",
-              "RelativeDocumentMoniker": "..\\DisServer\\Form1.cs",
-              "ToolTip": "C:\\NativeProject\\DisServer\\Form1.cs [Design]",
-              "RelativeToolTip": "..\\DisServer\\Form1.cs [Design]",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-09-18T12:54:15.855Z"
+              "WhenOpened": "2025-09-18T16:54:55.518Z",
+              "EditorCaption": ""
             }
           ]
         },
