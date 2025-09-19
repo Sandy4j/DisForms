@@ -25,7 +25,7 @@ namespace DisServer
         public string ip { get; private set; }
         public int port { get; private set; }
 
-        public ClientHandler(TcpClient client, Server server) 
+        public ClientHandler(TcpClient client, Server server)
         {
             var endpoint = client.Client.RemoteEndPoint as System.Net.IPEndPoint;
 
