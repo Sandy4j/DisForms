@@ -5,8 +5,141 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:local="clr-namespace:DisClient"
         mc:Ignorable="d"
-        Title="ClientLobby" Height="450" Width="800">
-    <Grid>
-        
+        Title="Connect to Server" Height="350" Width="700"
+        Background="#2C2F33"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+    
+    <Grid Margin="40">
+        <!-- Main content area -->
+        <Border Background="White" Padding="30">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="5"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="20"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="20"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="20"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Left Column -->
+                <!-- Server -->
+                <StackPanel Grid.Column="0" Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Server:" Foreground="Black" FontWeight="Bold" FontSize="14" 
+                               VerticalAlignment="Center" Width="60"/>
+                    <TextBox Name="ServerIPTextBox"
+                             Text="127.0.0.1"
+                             Background="White"
+                             Padding="5"
+                             FontSize="14"
+                             Width="150"/>
+                </StackPanel>
+
+                <!-- Port -->
+                <StackPanel Grid.Column="0" Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Port:" Foreground="Black" FontWeight="Bold" FontSize="14" 
+                               VerticalAlignment="Center" Width="60"/>
+                    <TextBox Name="ServerPortTextBox"
+                             Text="8888"
+                             Background="White"
+                             Padding="5"
+                             FontSize="14"
+                             Width="150"/>
+                </StackPanel>
+
+                <!-- Right Column -->
+                <!-- Username -->
+                <StackPanel Grid.Column="2" Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Username:" Foreground="Black" FontWeight="Bold" FontSize="14" 
+                               VerticalAlignment="Center" Width="75"/>
+                    <Grid Width="150">
+                        <!-- Actual TextBox -->
+                        <TextBox Name="UsernameTextBox"
+                                 Background="White"
+                                 Padding="5"
+                                 FontSize="14"
+                                 TextChanged="UsernameTextBox_TextChanged"/>
+
+                        <!-- Placeholder Text -->
+                        <TextBlock Name="UsernamePlaceholder"
+                                   Text="Enter username..."
+                                   Foreground="Gray"
+                                   FontSize="14"
+                                   Margin="7,5,0,0"
+                                   VerticalAlignment="Center"
+                                   IsHitTestVisible="False"
+                                   Visibility="Visible"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- My IP -->
+                <StackPanel Grid.Column="2" Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="My IP:" Foreground="Black" FontWeight="Bold" FontSize="14" 
+                               VerticalAlignment="Center" Width="50"/>
+                    <TextBox Name="UserIPTextBox"
+                             Background="White"
+                             Padding="5"
+                             FontSize="14"
+                             Width="150"
+                             IsReadOnly="True"/>
+                </StackPanel>
+
+                <!-- Connect Button (spans both columns) -->
+                <Button Name="ConnectButton"
+                        Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="6"
+                        Content="Connect"
+                        Background="White"
+                        Foreground="Black"
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Height="50"
+                        BorderThickness="2"
+                        BorderBrush="Black"
+                        Click="ConnectButton_Click"
+                        Cursor="Hand"/>
+
+                <!-- Connection Status -->
+                <TextBlock Name="StatusTextBlock"
+                           Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="4"
+                           Foreground="Red"
+                           FontSize="12"
+                           HorizontalAlignment="Center"
+                           Visibility="Collapsed"/>
+
+                <!-- Loading indicator -->
+                <StackPanel Name="LoadingPanel"
+                            Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="4"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Visibility="Collapsed">
+                    <TextBlock Text="Connecting..." Foreground="Black" FontSize="12" Margin="0,0,10,0"/>
+                    <TextBlock Text="●" Foreground="Black" FontSize="12">
+                        <TextBlock.RenderTransform>
+                            <RotateTransform x:Name="LoadingRotation"/>
+                        </TextBlock.RenderTransform>
+                        <TextBlock.Triggers>
+                            <EventTrigger RoutedEvent="TextBlock.Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard RepeatBehavior="Forever">
+                                        <DoubleAnimation Storyboard.TargetName="LoadingRotation"
+                                                       Storyboard.TargetProperty="Angle"
+                                                       From="0" To="360"
+                                                       Duration="0:0:1"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </TextBlock.Triggers>
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

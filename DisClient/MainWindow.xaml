@@ -12,11 +12,12 @@
 
         <!-- LEFT SIDEBAR -->
         <StackPanel Background="#23272A" Grid.Column="0" Margin="0">
-            <TextBlock Text="Friends" Foreground="White" Margin="10" FontWeight="Bold"/>
-            <ListBox Background="#2C2F33" BorderThickness="0">
-                <ListBoxItem Content="Client 1" />
-                <ListBoxItem Content="Client 2"/>
-                <ListBoxItem Content="Client 3"/>
+            <TextBlock Text="Online Users" Foreground="White" Margin="10" FontWeight="Bold"/>
+            <ListBox Name="OnlineUsersListBox" 
+                     Background="#2C2F33" 
+                     BorderThickness="0"
+                     Foreground="White">
+                <!-- Users will be added dynamically -->
             </ListBox>
         </StackPanel>
 
@@ -25,7 +26,7 @@
 
             <!-- Top Bar with Client Name -->
             <Border Background="#23272A" DockPanel.Dock="Top" Height="40">
-                <TextBlock Text="Client 1"
+                <TextBlock Text="General Chat"
                            Foreground="White"
                            VerticalAlignment="Center"
                            Margin="10"
@@ -74,10 +75,11 @@
             </Border>
 
             <!-- Chat Messages -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto" DockPanel.Dock="Top">
-                <StackPanel>
-                    <TextBlock Text="Client 1: Hello!" Foreground="White" Margin="5"/>
-                    <TextBlock Text="You: Hi there!" Foreground="LightGray" Margin="5"/>
+            <ScrollViewer Name="ChatScrollViewer" 
+                         VerticalScrollBarVisibility="Auto" 
+                         DockPanel.Dock="Top">
+                <StackPanel Name="ChatPanel">
+                    <!-- Messages will be added here dynamically -->
                 </StackPanel>
             </ScrollViewer>
         </DockPanel>

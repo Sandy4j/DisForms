@@ -1,8 +1,7 @@
 ﻿<Application x:Class="DisClient.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:DisClient"
-             StartupUri="MainWindow.xaml">
+             StartupUri="ClientLobby.xaml">
     <Application.Resources>
          
     </Application.Resources>
