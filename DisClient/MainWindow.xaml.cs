@@ -20,5 +20,39 @@ namespace DisClient
         {
             InitializeComponent();
         }
+
+        private void ListBoxItem_Selected(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void ListBoxItem_Selected_1(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void MessageTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(MessageTextBox.Text))
+            {
+                PlaceholderText.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                PlaceholderText.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void SendButton_Click(object sender, RoutedEventArgs e)
+        {
+            string message = MessageTextBox.Text.Trim();
+            if (!string.IsNullOrEmpty(message))
+            {
+                MessageBox.Show("Sending: " + message);
+                MessageTextBox.Clear();
+            }
+        }
+
+
     }
 }
