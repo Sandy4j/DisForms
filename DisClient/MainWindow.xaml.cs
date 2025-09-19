@@ -1,34 +1,53 @@
 ﻿using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace DisClient
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
+        private Client client;
+        private string username = "User";
+
         public MainWindow()
         {
             InitializeComponent();
+            ConnectToServer();
         }
 
-        private void ListBoxItem_Selected(object sender, RoutedEventArgs e)
+        private async void ConnectToServer()
         {
-
+            client = new Client();
+            client.MessageReceived += OnMessageReceived;
+            
+            bool connected = await client.ConnectAsync("127.0.0.1", 8888, username);
+            
+            if (!connected)
+            {
+                MessageBox.Show("Failed to connect to server!");
+            }
         }
 
-        private void ListBoxItem_Selected_1(object sender, RoutedEventArgs e)
+        private void OnMessageReceived(string message)
         {
+            // Update UI on main thread
+            Dispatcher.Invoke(() =>
+            {
+                // Add message to chat (you'll need to update your XAML to use a proper chat container)
+                // For now, showing in a MessageBox as placeholder
+                // You should replace this with proper chat UI updates
+            });
+        }
 
+        private async void SendButton_Click(object sender, RoutedEventArgs e)
+        {
+            string message = MessageTextBox.Text.Trim();
+            if (!string.IsNullOrEmpty(message) && client?.IsConnected == true)
+            {
+                await client.SendMessageAsync(message);
+                MessageTextBox.Clear();
+            }
         }
 
         private void MessageTextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -43,16 +62,9 @@ namespace DisClient
             }
         }
 
-        private void SendButton_Click(object sender, RoutedEventArgs e)
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            string message = MessageTextBox.Text.Trim();
-            if (!string.IsNullOrEmpty(message))
-            {
-                MessageBox.Show("Sending: " + message);
-                MessageTextBox.Clear();
-            }
+            client?.Disconnect();
         }
-
-
     }
 }

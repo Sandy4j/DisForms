@@ -3,4 +3,10 @@ obj/
 /packages/
 riderModule.iml
 /_ReSharper.Caches/
+/.idea/.idea.DisForms/.idea/.gitignore
+/.idea/.idea.DisForms/.idea/copilot.data.migration.agent.xml
+/.idea/.idea.DisForms/.idea/copilot.data.migration.edit.xml
+/.idea/.idea.DisForms/.idea/encodings.xml
+/.idea/.idea.DisForms/.idea/indexLayout.xml
+/.idea/.idea.DisForms/.idea/vcs.xml
 /.vs/

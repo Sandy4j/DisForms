@@ -14,8 +14,8 @@
         <StackPanel Background="#23272A" Grid.Column="0" Margin="0">
             <TextBlock Text="Friends" Foreground="White" Margin="10" FontWeight="Bold"/>
             <ListBox Background="#2C2F33" BorderThickness="0">
-                <ListBoxItem Content="Client 1" Selected="ListBoxItem_Selected_1"/>
-                <ListBoxItem Content="Client 2" Selected="ListBoxItem_Selected"/>
+                <ListBoxItem Content="Client 1" />
+                <ListBoxItem Content="Client 2"/>
                 <ListBoxItem Content="Client 3"/>
             </ListBox>
         </StackPanel>
