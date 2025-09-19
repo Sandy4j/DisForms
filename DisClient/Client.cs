@@ -2,6 +2,8 @@
 using System.IO;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace DisClient
@@ -11,7 +13,7 @@ namespace DisClient
         private TcpClient tcpClient;
         private NetworkStream stream;
         public bool IsConnected { get; private set; }
-        
+
         public event Action<string> MessageReceived;
 
         public async Task<bool> ConnectAsync(string serverIP, int port, string username)
@@ -21,18 +23,15 @@ namespace DisClient
                 tcpClient = new TcpClient();
                 await tcpClient.ConnectAsync(serverIP, port);
                 stream = tcpClient.GetStream();
-                
-                byte[] usernameBytes = Encoding.UTF8.GetBytes(username);
-                await stream.WriteAsync(usernameBytes, 0, usernameBytes.Length);
-                
+
                 IsConnected = true;
                 _ = Task.Run(ListenForMessagesAsync);
-                
+
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Connection failed: {ex.Message}");
+                IsConnected = false;
                 return false;
             }
         }
@@ -41,41 +40,27 @@ namespace DisClient
         {
             byte[] buffer = new byte[4096];
             
-            try
+            while (IsConnected && tcpClient?.Connected == true)
             {
-                while (IsConnected && tcpClient.Connected)
-                {
-                    int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-                    
-                    if (bytesRead == 0) break;
-                    
-                    string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                    MessageReceived?.Invoke(message);
-                }
+                int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+                string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                
+                MessageReceived?.Invoke(message);
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error receiving message: {ex.Message}");
-            }
-            finally
-            {
-                IsConnected = false;
-            }
+            
         }
 
         public async Task SendMessageAsync(string message)
         {
-            if (!IsConnected || stream == null) return;
+            if (!IsConnected || tcpClient?.Connected != true)
+            {
+                return;
+            }
+
+            byte[] buffer = Encoding.UTF8.GetBytes(message);
+            await stream.WriteAsync(buffer, 0, buffer.Length);
+            await stream.FlushAsync();
             
-            try
-            {
-                byte[] buffer = Encoding.UTF8.GetBytes(message);
-                await stream.WriteAsync(buffer, 0, buffer.Length);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error sending message: {ex.Message}");
-            }
         }
 
         public void Disconnect()
@@ -84,5 +69,17 @@ namespace DisClient
             stream?.Close();
             tcpClient?.Close();
         }
+    }
+
+    public class MessagePackage
+    {
+        [JsonPropertyName("type")]
+        public string type { get; set; }
+        
+        [JsonPropertyName("from")]
+        public string from { get; set; }
+        
+        [JsonPropertyName("package")]
+        public string package { get; set; }
     }
 }

@@ -6,13 +6,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Text.Json;
 
-/* Type message
-   ["register"] -> gawe message register only
-   ["system"] -> gawe message system
-   ["chat"] -> gawe chat group
-   ["pm"] -> gawe chat private
-*/
-
 namespace DisServer
 {
     internal class ClientHandler
@@ -35,51 +28,89 @@ namespace DisServer
             client_id = Guid.NewGuid().ToString();
             ip = endpoint.Address.ToString();
             port = endpoint.Port;
+            
+            Console.WriteLine($"New client connected: {client_id} from {ip}:{port}");
         }
 
         public async Task HandleClientAsync()
         {
             byte[] buffer = new byte[4096];
+            Console.WriteLine($"Started handling client {client_id}");
 
             try
             {
-                int bytes_read;
-
-                while (true)
+                while (client.Connected)
                 {
-                    bytes_read = await stream.ReadAsync(buffer, 0, buffer.Length);
+                    int bytes_read = await stream.ReadAsync(buffer, 0, buffer.Length);
 
-                    if (bytes_read == 0) break;
+                    if (bytes_read == 0) 
+                    {
+                        Console.WriteLine($"Client {client_id} disconnected (0 bytes)");
+                        break;
+                    }
 
                     string json_string = Encoding.UTF8.GetString(buffer, 0, bytes_read);
+                    Console.WriteLine($"Received from client {client_id}: {json_string}");
 
-                    var packet = JsonSerializer.Deserialize<MessagePackage>(json_string);
-
-                    switch (packet.type)
+                    try
                     {
-                        case "register":
-                            this.username = packet.from;
-                            Console.WriteLine($"client {this.client_id} registered as {this.username}");
-                            server.BroadcastSystemMessage($"{this.username} join the chat.", this);
-                            break;
-                        case "system":
-                            break;
-                        case "chat":
-                            if (string.IsNullOrEmpty(this.username)) break;
-                            server.BroadcastChatMessage(this.username, packet.package, this);
-                            break;
-                        case "pm":
-                            break;
+                        var options = new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        };
+                        
+                        var packet = JsonSerializer.Deserialize<MessagePackage>(json_string, options);
+
+                        switch (packet.type)
+                        {
+                            case "register":
+                                this.username = packet.from;
+                                Console.WriteLine($"Client {this.client_id} registered as {this.username}");
+                                
+                                await server.BroadcastSystemMessage($"{this.username} joined the chat.", this);
+                                await server.BroadcastUsersList();
+                                break;
+                                
+                            case "system":
+                                Console.WriteLine($"System message from {username ?? client_id}: {packet.package}");
+                                break;
+                            
+                            case "chat":
+                                if (string.IsNullOrEmpty(this.username)) 
+                                {
+                                    Console.WriteLine($"Chat message rejected - user not registered: {client_id}");
+                                    break;
+                                }
+                                Console.WriteLine($"Chat message from {this.username}: {packet.package}");
+                                await server.BroadcastChatMessage(this.username, packet.package, this);
+                                break;
+                                
+                            case "pm":
+                                Console.WriteLine($"Private message from {username ?? client_id}: {packet.package}");
+                                break;
+                                
+                            default:
+                                Console.WriteLine($"Unknown message type: {packet.type}");
+                                break;
+                        }
+                    }
+                    catch (JsonException ex)
+                    {
+                        Console.WriteLine($"JSON parsing error from client {client_id}: {ex.Message}");
+                        Console.WriteLine($"Raw message: {json_string}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"client error [{username ?? client_id}]: {ex.Message}");
+                Console.WriteLine($"Client error [{username ?? client_id}]: {ex.Message}");
             }
             finally
             {
-                if (!string.IsNullOrEmpty(username)) server.BroadcastSystemMessage($"{username} left the chat.", this);
+                if (!string.IsNullOrEmpty(username)) 
+                {
+                    await server.BroadcastSystemMessage($"{username} left the chat.", this);
+                }
 
                 CleanUp();
             }
@@ -87,22 +118,17 @@ namespace DisServer
 
         public async Task SendMessageAsync(string message)
         {
-            try
-            {
-                byte[] buffer = Encoding.UTF8.GetBytes(message);
-                await stream.WriteAsync(buffer, 0, buffer.Length);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"failed send message [{username ?? client_id}]: {ex.Message}");
-                CleanUp();
-            }
+            byte[] buffer = Encoding.UTF8.GetBytes(message);
+            await stream.WriteAsync(buffer, 0, buffer.Length);
+            await stream.FlushAsync();
         }
 
         private void CleanUp()
         {
             server.RemoveClient(this);
-            client.Close();
+            stream?.Close();
+            client?.Close();
+         
         }
     }
 }

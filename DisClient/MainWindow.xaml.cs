@@ -5,6 +5,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Linq;
+using System;
+using System.Threading.Tasks;
 
 namespace DisClient
 {
@@ -25,20 +27,21 @@ namespace DisClient
             serverIP = srvIP;
             serverPort = srvPort;
             
+            // Subscribe to message events
             client.MessageReceived += OnMessageReceived;
             
             this.Title = $"Disclite - {username} @ {serverIP}:{serverPort}";
-            SendRegistrationMessage();
+            SendButton.Click += SendButton_Click;
+            MessageTextBox.TextChanged += MessageTextBox_TextChanged;
+            MessageTextBox.KeyDown += MessageTextBox_KeyDown;
+            
+            _ = Task.Run(async () => {
+                await Task.Delay(500); // Give connection time to stabilize
+                await SendRegistrationMessage();
+            });
         }
 
-        public MainWindow()
-        {
-            InitializeComponent();
-            username = "User";
-            ConnectToServer();
-        }
-
-        private async void SendRegistrationMessage()
+        private async Task SendRegistrationMessage()
         {
             if (client?.IsConnected == true)
             {
@@ -54,61 +57,54 @@ namespace DisClient
             }
         }
 
-        private async void ConnectToServer()
-        {
-            client = new Client();
-            client.MessageReceived += OnMessageReceived;
-            
-            bool connected = await client.ConnectAsync("127.0.0.1", 8888, username);
-            
-            if (!connected)
-            {
-                MessageBox.Show("Failed to connect to server!");
-            }
-            else
-            {
-                SendRegistrationMessage();
-            }
-        }
-
         private void OnMessageReceived(string message)
         {
-            Dispatcher.Invoke(() =>
+            if (!Dispatcher.CheckAccess())
             {
-                try
+                Dispatcher.Invoke(() => OnMessageReceived(message));
+                return;
+            }
+
+            try
+            {
+                // Try to parse as JSON
+                var messagePacket = JsonSerializer.Deserialize<MessagePackage>(message);
+        
+                switch (messagePacket.type)
                 {
-                    var messagePacket = JsonSerializer.Deserialize<MessagePackage>(message);
-                    
-                    switch (messagePacket.type)
-                    {
-                        case "user_joined":
-                            HandleUserJoined(messagePacket.from);
-                            AddSystemMessage($"{messagePacket.from} joined the chat");
-                            break;
-                            
-                        case "user_left":
-                            HandleUserLeft(messagePacket.from);
-                            AddSystemMessage($"{messagePacket.from} left the chat");
-                            break;
-                            
-                        case "users_list":
-                            HandleUsersList(messagePacket.package);
-                            break;
-                            
-                        case "chat":
-                            AddChatMessage(messagePacket.from, messagePacket.package);
-                            break;
-                            
-                        default:
-                            AddSystemMessage(message);
-                            break;
-                    }
+                    case "system":
+                        AddSystemMessage(messagePacket.package);
+                        break;
+                
+                    case "chat":
+                        AddChatMessage(messagePacket.from, messagePacket.package);
+                        break;
+                        
+                    case "users_list":
+                        HandleUsersList(messagePacket.package);
+                        break;
+                        
+                    case "user_joined":
+                        HandleUserJoined(messagePacket.package);
+                        break;
+                        
+                    case "user_left":
+                        HandleUserLeft(messagePacket.package);
+                        break;
+                
+                    default:
+                        AddSystemMessage($"Unknown message: {message}");
+                        break;
                 }
-                catch (JsonException)
-                {
-                    AddSystemMessage(message);
-                }
-            });
+            }
+            catch (JsonException ex)
+            {
+                AddSystemMessage(message);
+            }
+            catch (Exception ex)
+            {
+                AddSystemMessage($"Error: {ex.Message}");
+            }
         }
 
         private void HandleUserJoined(string user)
@@ -130,20 +126,9 @@ namespace DisClient
 
         private void HandleUsersList(string usersJson)
         {
-            try
-            {
-                var users = JsonSerializer.Deserialize<List<string>>(usersJson);
-                onlineUsers = users ?? new List<string>();
-                UpdateOnlineUsersList();
-            }
-            catch (JsonException)
-            {
-                if (!string.IsNullOrEmpty(usersJson))
-                {
-                    onlineUsers = usersJson.Split(',').Select(u => u.Trim()).ToList();
-                    UpdateOnlineUsersList();
-                }
-            }
+            var users = JsonSerializer.Deserialize<List<string>>(usersJson);
+            onlineUsers = users ?? new List<string>();
+            UpdateOnlineUsersList();
         }
 
         private void UpdateOnlineUsersList()
@@ -156,52 +141,45 @@ namespace DisClient
                 {
                     Content = user,
                     Foreground = user == username ? 
-                        System.Windows.Media.Brushes.LightGreen : 
-                        System.Windows.Media.Brushes.White,
+                        System.Windows.Media.Brushes.Blue : 
+                        System.Windows.Media.Brushes.Black,
                     Margin = new Thickness(5, 2, 5, 2)
                 };
                 
                 OnlineUsersListBox.Items.Add(listItem);
-            }
+                }
         }
 
         private void AddChatMessage(string sender, string messageContent)
         {
-            var scrollViewer = FindName("ChatScrollViewer") as ScrollViewer;
-            if (scrollViewer?.Content is StackPanel chatPanel)
+            TextBlock messageBlock = new TextBlock
             {
-                TextBlock messageBlock = new TextBlock
-                {
-                    Text = $"[{sender}]: {messageContent}",
-                    Foreground = sender == username ? 
-                        System.Windows.Media.Brushes.LightBlue : 
-                        System.Windows.Media.Brushes.White,
-                    Margin = new Thickness(5),
-                    TextWrapping = TextWrapping.Wrap
-                };
-                
-                chatPanel.Children.Add(messageBlock);
-                scrollViewer.ScrollToEnd();
-            }
+                Text = $"[{sender}]: {messageContent}",
+                Foreground = sender == username ? 
+                    System.Windows.Media.Brushes.Blue : 
+                    System.Windows.Media.Brushes.Black,
+                Margin = new Thickness(5),
+                TextWrapping = TextWrapping.Wrap
+            };
+            
+            ChatPanel.Children.Add(messageBlock);
+            ChatScrollViewer.ScrollToEnd();
+            
         }
 
         private void AddSystemMessage(string message)
         {
-            var scrollViewer = FindName("ChatScrollViewer") as ScrollViewer;
-            if (scrollViewer?.Content is StackPanel chatPanel)
+            TextBlock messageBlock = new TextBlock
             {
-                TextBlock messageBlock = new TextBlock
-                {
-                    Text = message,
-                    Foreground = System.Windows.Media.Brushes.Yellow,
-                    Margin = new Thickness(5),
-                    TextWrapping = TextWrapping.Wrap,
-                    FontStyle = FontStyles.Italic
-                };
-                
-                chatPanel.Children.Add(messageBlock);
-                scrollViewer.ScrollToEnd();
-            }
+                Text = message,
+                Foreground = System.Windows.Media.Brushes.Gray,
+                Margin = new Thickness(5),
+                TextWrapping = TextWrapping.Wrap,
+                FontStyle = FontStyles.Italic
+            };
+            
+            ChatPanel.Children.Add(messageBlock);
+            ChatScrollViewer.ScrollToEnd();
         }
 
         private async void SendButton_Click(object sender, RoutedEventArgs e)
@@ -220,6 +198,15 @@ namespace DisClient
                 await client.SendMessageAsync(json);
                 
                 MessageTextBox.Clear();
+                PlaceholderText.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void MessageTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter)
+            {
+                SendButton_Click(sender, new RoutedEventArgs());
             }
         }
 
@@ -239,12 +226,5 @@ namespace DisClient
         {
             client?.Disconnect();
         }
-    }
-
-    public class MessagePackage
-    {
-        public string type { get; set; }
-        public string from { get; set; }
-        public string package { get; set; }
     }
 }

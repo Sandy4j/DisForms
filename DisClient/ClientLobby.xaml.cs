@@ -13,6 +13,10 @@ public partial class ClientLobby : Window
     {
         InitializeComponent();
         LoadUserIP();
+        
+        ConnectButton.Click += ConnectButton_Click;
+        UsernameTextBox.TextChanged += UsernameTextBox_TextChanged;
+        UsernameTextBox.KeyDown += UsernameTextBox_KeyDown;
     }
 
     private void LoadUserIP()
@@ -25,7 +29,6 @@ public partial class ClientLobby : Window
         catch (Exception ex)
         {
             UserIPTextBox.Text = "Unable to detect IP";
-            Console.WriteLine($"Error getting local IP: {ex.Message}");
         }
     }
 
@@ -64,9 +67,17 @@ public partial class ClientLobby : Window
         }
     }
 
+    private void UsernameTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Enter)
+        {
+            ConnectButton_Click(sender, new RoutedEventArgs());
+        }
+    }
+
     private async void ConnectButton_Click(object sender, RoutedEventArgs e)
     {
-        // Validate inputs
+        //Validasi Input
         if (string.IsNullOrWhiteSpace(UsernameTextBox.Text))
         {
             ShowStatus("Please enter a username.", true);
@@ -97,6 +108,7 @@ public partial class ClientLobby : Window
             if (connected)
             {
                 ShowStatus("Connected successfully!", false);
+                await Task.Delay(500);
                 
                 MainWindow mainWindow = new MainWindow(
                     testClient, 
@@ -130,7 +142,7 @@ public partial class ClientLobby : Window
         StatusTextBlock.Text = message;
         StatusTextBlock.Foreground = isError ? 
             System.Windows.Media.Brushes.Red : 
-            System.Windows.Media.Brushes.LightGreen;
+            System.Windows.Media.Brushes.Green;
         StatusTextBlock.Visibility = Visibility.Visible;
         
         if (!isError)

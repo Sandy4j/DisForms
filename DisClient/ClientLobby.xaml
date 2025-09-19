@@ -64,8 +64,7 @@
                         <TextBox Name="UsernameTextBox"
                                  Background="White"
                                  Padding="5"
-                                 FontSize="14"
-                                 TextChanged="UsernameTextBox_TextChanged"/>
+                                 FontSize="14"/>
 
                         <!-- Placeholder Text -->
                         <TextBlock Name="UsernamePlaceholder"
@@ -102,7 +101,6 @@
                         Height="50"
                         BorderThickness="2"
                         BorderBrush="Black"
-                        Click="ConnectButton_Click"
                         Cursor="Hand"/>
 
                 <!-- Connection Status -->
