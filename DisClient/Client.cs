@@ -10,11 +10,11 @@ namespace DisClient
 {
     public class Client
     {
-        private TcpClient tcpClient;
-        private NetworkStream stream;
+        private TcpClient? tcpClient;
+        private NetworkStream? stream;
         public bool IsConnected { get; private set; }
 
-        public event Action<string> MessageReceived;
+        public event Action<string>? MessageReceived;
 
         public async Task<bool> ConnectAsync(string serverIP, int port, string username)
         {
@@ -29,7 +29,7 @@ namespace DisClient
 
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 IsConnected = false;
                 return false;
@@ -74,12 +74,12 @@ namespace DisClient
     public class MessagePackage
     {
         [JsonPropertyName("type")]
-        public string type { get; set; }
+        public string type { get; set; } = string.Empty;
         
         [JsonPropertyName("from")]
-        public string from { get; set; }
+        public string from { get; set; } = string.Empty;
         
         [JsonPropertyName("package")]
-        public string package { get; set; }
+        public string package { get; set; } = string.Empty;
     }
 }

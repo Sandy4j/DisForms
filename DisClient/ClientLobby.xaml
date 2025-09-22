@@ -5,7 +5,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:local="clr-namespace:DisClient"
         mc:Ignorable="d"
-        Title="Connect to Server" Height="350" Width="700"
+        Title="Connect to Server" Height="370" Width="700"
         Background="#2C2F33"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize">

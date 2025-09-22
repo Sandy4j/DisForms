@@ -11,12 +11,29 @@
         </Grid.ColumnDefinitions>
 
         <!-- LEFT SIDEBAR -->
-        <Border Background="#F6F6F6" 
-                BorderBrush="#E0E0E0" 
-                BorderThickness="0,0,1,0" 
+        <Border Name="LeftSidebarBorder"
+                Background="#F6F6F6"
+                BorderBrush="#E0E0E0"
+                BorderThickness="0,0,1,0"
                 Grid.Column="0">
             <StackPanel Margin="0">
-                <TextBlock Text="Online Users" Foreground="#2C2F33" Margin="10" FontWeight="Bold"/>
+                <!-- Theme Toggle Button -->
+                <Button Name="ThemeToggleButton"
+                        Content="🌙"
+                        HorizontalAlignment="Right"
+                        Margin="5"
+                        Width="30"
+                        Height="30"
+                        Background="Transparent"
+                        BorderThickness="1"
+                        BorderBrush="#E0E0E0"
+                        FontSize="16"/>
+                
+                <TextBlock Name="OnlineUsersLabel" 
+                           Text="Online Users" 
+                           Foreground="#2C2F33" 
+                           Margin="10" 
+                           FontWeight="Bold"/>
                 <ListBox Name="OnlineUsersListBox"
                          Background="#FFFFFF"
                          BorderThickness="1"
@@ -29,19 +46,22 @@
         </Border>
 
         <!-- MIDDLE CHAT -->
-        <Border Background="#FFFFFF" 
-                BorderBrush="#E0E0E0" 
-                BorderThickness="0,0,0,0" 
+        <Border Name="ChatBorder"
+                Background="#FFFFFF"
+                BorderBrush="#E0E0E0"
+                BorderThickness="0,0,0,0"
                 Grid.Column="1">
             <DockPanel>
 
                 <!-- Top Bar with Client Name -->
-                <Border Background="#F6F6F6" 
-                        BorderBrush="#E0E0E0" 
-                        BorderThickness="0,0,0,1" 
-                        DockPanel.Dock="Top" 
+                <Border Name="TopBarBorder"
+                        Background="#F6F6F6"
+                        BorderBrush="#E0E0E0"
+                        BorderThickness="0,0,0,1"
+                        DockPanel.Dock="Top"
                         Height="40">
-                    <TextBlock Text="General Chat"
+                    <TextBlock Name="ChatTitleLabel"
+                               Text="General Chat"
                                Foreground="#2C2F33"
                                VerticalAlignment="Center"
                                Margin="10"
@@ -49,11 +69,12 @@
                 </Border>
 
                 <!-- Bottom Input Area with Placeholder and Send Button -->
-                <Border DockPanel.Dock="Bottom" 
-                        Margin="5" 
-                        Background="#FFFFFF" 
+                <Border Name="InputAreaBorder"
+                        DockPanel.Dock="Bottom"
+                        Margin="5"
+                        Background="#FFFFFF"
                         Height="40"
-                        BorderBrush="#E0E0E0" 
+                        BorderBrush="#E0E0E0"
                         BorderThickness="0,1,0,0">
                     <DockPanel LastChildFill="True">
 
@@ -97,9 +118,10 @@
                 </Border>
 
                 <!-- Chat Messages -->
-                <Border Background="#FFFFFF" 
-                        BorderBrush="#E0E0E0" 
-                        BorderThickness="1" 
+                <Border Name="ChatMessagesBorder"
+                        Background="#FFFFFF"
+                        BorderBrush="#E0E0E0"
+                        BorderThickness="1"
                         Margin="5">
                     <ScrollViewer Name="ChatScrollViewer"
                                  VerticalScrollBarVisibility="Auto">

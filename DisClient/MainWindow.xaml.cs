@@ -7,6 +7,7 @@ using System.Windows.Documents;
 using System.Linq;
 using System;
 using System.Threading.Tasks;
+using System.Windows.Media;
 
 namespace DisClient
 {
@@ -17,6 +18,7 @@ namespace DisClient
         private string serverIP;
         private int serverPort;
         private List<string> onlineUsers = new List<string>();
+        private bool isDarkMode = false;
 
         public MainWindow(Client connectedClient, string userName, string srvIP, int srvPort)
         {
@@ -27,20 +29,125 @@ namespace DisClient
             serverIP = srvIP;
             serverPort = srvPort;
             
-            // Subscribe to message events
             client.MessageReceived += OnMessageReceived;
             
             this.Title = $"Disclite - {username} @ {serverIP}:{serverPort}";
             SendButton.Click += SendButton_Click;
             MessageTextBox.TextChanged += MessageTextBox_TextChanged;
             MessageTextBox.KeyDown += MessageTextBox_KeyDown;
+            ThemeToggleButton.Click += ThemeToggleButton_Click;
             
             _ = Task.Run(async () => {
-                await Task.Delay(500); // Give connection time to stabilize
+                await Task.Delay(500);
                 await SendRegistrationMessage();
             });
         }
 
+        private void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
+        {
+            isDarkMode = !isDarkMode;
+            ApplyTheme();
+        }
+
+        private void ApplyTheme()
+        {
+            if (isDarkMode)
+            {
+                ApplyDarkTheme();
+                ThemeToggleButton.Content = "☀️";
+            }
+            else
+            {
+                ApplyLightTheme();
+                ThemeToggleButton.Content = "🌙";
+            }
+            RefreshChatMessages();
+            UpdateOnlineUsersList();
+        }
+
+        private void ApplyDarkTheme()
+        {
+            this.Background = new SolidColorBrush(Color.FromRgb(54, 57, 63));
+            
+            LeftSidebarBorder.Background = new SolidColorBrush(Color.FromRgb(47, 49, 54));
+            LeftSidebarBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(32, 34, 37));
+            OnlineUsersLabel.Foreground = new SolidColorBrush(Color.FromRgb(220, 221, 222));
+            OnlineUsersListBox.Background = new SolidColorBrush(Color.FromRgb(64, 68, 75));
+            OnlineUsersListBox.BorderBrush = new SolidColorBrush(Color.FromRgb(32, 34, 37));
+            OnlineUsersListBox.Foreground = new SolidColorBrush(Color.FromRgb(220, 221, 222));
+            
+            ChatBorder.Background = new SolidColorBrush(Color.FromRgb(54, 57, 63));
+            TopBarBorder.Background = new SolidColorBrush(Color.FromRgb(47, 49, 54));
+            TopBarBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(32, 34, 37));
+            ChatTitleLabel.Foreground = new SolidColorBrush(Color.FromRgb(220, 221, 222));
+            
+            InputAreaBorder.Background = new SolidColorBrush(Color.FromRgb(54, 57, 63));
+            InputAreaBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(32, 34, 37));
+            MessageTextBox.Background = new SolidColorBrush(Color.FromRgb(64, 68, 75));
+            MessageTextBox.Foreground = new SolidColorBrush(Color.FromRgb(220, 221, 222));
+            MessageTextBox.BorderBrush = new SolidColorBrush(Color.FromRgb(32, 34, 37));
+            PlaceholderText.Foreground = new SolidColorBrush(Color.FromRgb(114, 118, 125));
+            
+            ChatMessagesBorder.Background = new SolidColorBrush(Color.FromRgb(54, 57, 63));
+            ChatMessagesBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(32, 34, 37));
+            
+            ThemeToggleButton.BorderBrush = new SolidColorBrush(Color.FromRgb(32, 34, 37));
+        }
+
+        private void ApplyLightTheme()
+        {
+            this.Background = new SolidColorBrush(Colors.White);
+            
+            LeftSidebarBorder.Background = new SolidColorBrush(Color.FromRgb(246, 246, 246));
+            LeftSidebarBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224));
+            OnlineUsersLabel.Foreground = new SolidColorBrush(Color.FromRgb(44, 47, 51));
+            OnlineUsersListBox.Background = new SolidColorBrush(Colors.White);
+            OnlineUsersListBox.BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224));
+            OnlineUsersListBox.Foreground = new SolidColorBrush(Color.FromRgb(44, 47, 51));
+            
+            ChatBorder.Background = new SolidColorBrush(Colors.White);
+            TopBarBorder.Background = new SolidColorBrush(Color.FromRgb(246, 246, 246));
+            TopBarBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224));
+            ChatTitleLabel.Foreground = new SolidColorBrush(Color.FromRgb(44, 47, 51));
+            
+            InputAreaBorder.Background = new SolidColorBrush(Colors.White);
+            InputAreaBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224));
+            MessageTextBox.Background = new SolidColorBrush(Color.FromRgb(246, 246, 246));
+            MessageTextBox.Foreground = new SolidColorBrush(Color.FromRgb(44, 47, 51));
+            MessageTextBox.BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224));
+            PlaceholderText.Foreground = new SolidColorBrush(Color.FromRgb(138, 138, 138));
+            
+            ChatMessagesBorder.Background = new SolidColorBrush(Colors.White);
+            ChatMessagesBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224));
+            
+            ThemeToggleButton.BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224));
+        }
+
+        private void RefreshChatMessages()
+        {
+            foreach (UIElement element in ChatPanel.Children)
+            {
+                if (element is TextBlock textBlock)
+                {
+                    if (textBlock.FontStyle == FontStyles.Italic)
+                    {
+                        textBlock.Foreground = isDarkMode ? 
+                            new SolidColorBrush(Color.FromRgb(114, 118, 125)) : 
+                            Brushes.Gray;
+                    }
+                    else if (textBlock.Text.StartsWith($"[{username}]:"))
+                    {
+                        textBlock.Foreground = Brushes.Blue;
+                    }
+                    else
+                    {
+                        textBlock.Foreground = isDarkMode ? 
+                            new SolidColorBrush(Color.FromRgb(220, 221, 222)) : 
+                            Brushes.Black;
+                    }
+                }
+            }
+        }
         private async Task SendRegistrationMessage()
         {
             if (client?.IsConnected == true)
@@ -67,7 +174,6 @@ namespace DisClient
 
             try
             {
-                // Try to parse as JSON
                 var messagePacket = JsonSerializer.Deserialize<MessagePackage>(message);
         
                 switch (messagePacket.type)
@@ -97,7 +203,7 @@ namespace DisClient
                         break;
                 }
             }
-            catch (JsonException ex)
+            catch (JsonException)
             {
                 AddSystemMessage(message);
             }
@@ -131,6 +237,7 @@ namespace DisClient
             UpdateOnlineUsersList();
         }
 
+
         private void UpdateOnlineUsersList()
         {
             OnlineUsersListBox.Items.Clear();
@@ -141,13 +248,13 @@ namespace DisClient
                 {
                     Content = user,
                     Foreground = user == username ? 
-                        System.Windows.Media.Brushes.Blue : 
-                        System.Windows.Media.Brushes.Black,
+                        Brushes.Blue : 
+                        (isDarkMode ? new SolidColorBrush(Color.FromRgb(220, 221, 222)) : Brushes.Black),
                     Margin = new Thickness(5, 2, 5, 2)
                 };
                 
                 OnlineUsersListBox.Items.Add(listItem);
-                }
+            }
         }
 
         private void AddChatMessage(string sender, string messageContent)
@@ -156,15 +263,14 @@ namespace DisClient
             {
                 Text = $"[{sender}]: {messageContent}",
                 Foreground = sender == username ? 
-                    System.Windows.Media.Brushes.Blue : 
-                    System.Windows.Media.Brushes.Black,
+                    Brushes.Blue : 
+                    (isDarkMode ? new SolidColorBrush(Color.FromRgb(220, 221, 222)) : Brushes.Black),
                 Margin = new Thickness(5),
                 TextWrapping = TextWrapping.Wrap
             };
             
             ChatPanel.Children.Add(messageBlock);
             ChatScrollViewer.ScrollToEnd();
-            
         }
 
         private void AddSystemMessage(string message)
@@ -172,7 +278,9 @@ namespace DisClient
             TextBlock messageBlock = new TextBlock
             {
                 Text = message,
-                Foreground = System.Windows.Media.Brushes.Gray,
+                Foreground = isDarkMode ? 
+                    new SolidColorBrush(Color.FromRgb(114, 118, 125)) : 
+                    Brushes.Gray,
                 Margin = new Thickness(5),
                 TextWrapping = TextWrapping.Wrap,
                 FontStyle = FontStyles.Italic
