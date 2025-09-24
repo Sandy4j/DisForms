@@ -183,7 +183,7 @@ namespace DisClient
                         break;
                 
                     case "chat":
-                        AddChatMessage(messagePacket.from, messagePacket.package);
+                        AddChatMessage(messagePacket.from, messagePacket.package, messagePacket.timestamp);
                         break;
                         
                     case "users_list":
@@ -257,21 +257,44 @@ namespace DisClient
             }
         }
 
-        private void AddChatMessage(string sender, string messageContent)
+        private void AddChatMessage(string sender, string messageContent, DateTime? serverTimestamp = null)
         {
-            TextBlock messageBlock = new TextBlock
+            var messagePanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(5)
+            };
+
+            var messageBlock = new TextBlock
             {
                 Text = $"[{sender}]: {messageContent}",
-                Foreground = sender == username ? 
-                    Brushes.Blue : 
+                Foreground = sender == username ?
+                    Brushes.Blue :
                     (isDarkMode ? new SolidColorBrush(Color.FromRgb(220, 221, 222)) : Brushes.Black),
-                Margin = new Thickness(5),
-                TextWrapping = TextWrapping.Wrap
+                TextWrapping = TextWrapping.Wrap,
+                VerticalAlignment = VerticalAlignment.Center
             };
-            
-            ChatPanel.Children.Add(messageBlock);
+
+            var timeToShow = serverTimestamp ?? DateTime.Now;
+            var timeBlock = new TextBlock
+            {
+                Text = timeToShow.ToString("HH:mm"),
+                Foreground = isDarkMode ?
+                    new SolidColorBrush(Color.FromRgb(114, 118, 125)) :
+                    Brushes.Gray,
+                Margin = new Thickness(10, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
+            messagePanel.Children.Add(messageBlock);
+            messagePanel.Children.Add(timeBlock);
+
+            ChatPanel.Children.Add(messagePanel);
             ChatScrollViewer.ScrollToEnd();
         }
+
+
 
         private void AddSystemMessage(string message)
         {

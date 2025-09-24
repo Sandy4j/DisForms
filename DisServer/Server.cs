@@ -20,16 +20,20 @@ namespace DisServer
     {
         [JsonPropertyName("type")]
         public string type { get; set; }
-        
+    
         [JsonPropertyName("to")]
         public string? to { get; set; }
-        
+    
         [JsonPropertyName("from")]
         public string from { get; set; }
-        
+    
         [JsonPropertyName("package")]
         public string? package { get; set; }
+    
+        [JsonPropertyName("timestamp")]
+        public DateTime? timestamp { get; set; }
     }
+
 
     internal class Server
     {
@@ -80,11 +84,13 @@ namespace DisServer
         {
             if (client == null) return;
 
+            var messageTime = DateTime.Now;
             var package = new MessagePackage
             {
                 type = "chat",
                 from = username,
-                package = message
+                package = message,
+                timestamp = messageTime
             };
 
             var options = new System.Text.Json.JsonSerializerOptions
@@ -99,20 +105,20 @@ namespace DisServer
             {
                 client_id = client.client_id,
                 message = message,
-                time = DateTime.Now
+                time = messageTime
             };
             messages.Add(chat_log);
 
             // Send to all registered clients
             var registeredClients = clients.Values.Where(c => !string.IsNullOrEmpty(c.username)).ToList();
             Console.WriteLine($"Sending chat to {registeredClients.Count} registered clients");
-            
+    
             var tasks = new List<Task>();
             foreach (var item in registeredClients)
             {
                 tasks.Add(item.SendMessageAsync(json_package));
             }
-            
+    
             try
             {
                 await Task.WhenAll(tasks);
@@ -125,6 +131,7 @@ namespace DisServer
 
             SaveChatLog();
         }
+
 
         public async Task BroadcastSystemMessage(string message, ClientHandler? client = null)
         {

@@ -75,11 +75,15 @@ namespace DisClient
     {
         [JsonPropertyName("type")]
         public string type { get; set; } = string.Empty;
-        
+    
         [JsonPropertyName("from")]
         public string from { get; set; } = string.Empty;
-        
+    
         [JsonPropertyName("package")]
         public string package { get; set; } = string.Empty;
+    
+        [JsonPropertyName("timestamp")]
+        public DateTime? timestamp { get; set; }
     }
+
 }

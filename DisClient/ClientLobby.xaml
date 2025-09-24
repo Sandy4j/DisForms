@@ -47,7 +47,7 @@
                     <TextBlock Text="Port:" Foreground="Black" FontWeight="Bold" FontSize="14" 
                                VerticalAlignment="Center" Width="60"/>
                     <TextBox Name="ServerPortTextBox"
-                             Text="8888"
+                             Text="8080"
                              Background="White"
                              Padding="5"
                              FontSize="14"
