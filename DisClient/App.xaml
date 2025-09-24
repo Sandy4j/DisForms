@@ -3,6 +3,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="ClientLobby.xaml">
     <Application.Resources>
-         
-    </Application.Resources>
+    <!-- Light Theme -->
+    <SolidColorBrush x:Key="PrimaryBlueLight" Color="#4A90E2"/>
+    <SolidColorBrush x:Key="PrimaryBlueLightHover" Color="#357ABD"/>
+
+    <!-- Dark Theme -->
+    <SolidColorBrush x:Key="PrimaryBlueDark" Color="#3B82F6"/>
+    <SolidColorBrush x:Key="PrimaryBlueDarkHover" Color="#2563EB"/>
+</Application.Resources>
+
 </Application>

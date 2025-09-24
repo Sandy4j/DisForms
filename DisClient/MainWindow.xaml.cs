@@ -1,153 +1,86 @@
-﻿using System.Collections.Generic;
-using System.Text;
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
-using System.Linq;
-using System;
-using System.Threading.Tasks;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace DisClient
 {
     public partial class MainWindow : Window
     {
+        public ObservableCollection<ChatMessage> Messages { get; set; } = new();
+
+        // fully-qualified timer type to avoid ambiguity
+        private System.Timers.Timer typingTimer;
+
         private Client client;
-        private string username;
-        private string serverIP;
+        private string username = string.Empty;
+        private string serverIP = string.Empty;
         private int serverPort;
         private List<string> onlineUsers = new List<string>();
         private bool isDarkMode = false;
+        private bool isTyping = false;
 
-        public MainWindow(Client connectedClient, string userName, string srvIP, int srvPort)
+        // Keep both ctors (designer-safe + the one that accepts args)
+        public MainWindow()
         {
             InitializeComponent();
-            
+            DataContext = this;
+            CommonInit();
+        }
+
+        public MainWindow(Client connectedClient, string userName, string srvIP, int srvPort)
+            : this()
+        {
+            // store connection info
             client = connectedClient;
-            username = userName;
-            serverIP = srvIP;
+            username = userName ?? string.Empty;
+            serverIP = srvIP ?? string.Empty;
             serverPort = srvPort;
-            
-            client.MessageReceived += OnMessageReceived;
-            
-            this.Title = $"Disclite - {username} @ {serverIP}:{serverPort}";
-            SendButton.Click += SendButton_Click;
-            MessageTextBox.TextChanged += MessageTextBox_TextChanged;
-            MessageTextBox.KeyDown += MessageTextBox_KeyDown;
-            ThemeToggleButton.Click += ThemeToggleButton_Click;
-            
-            _ = Task.Run(async () => {
-                await Task.Delay(500);
-                await SendRegistrationMessage();
-            });
-        }
 
-        private void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
-        {
-            isDarkMode = !isDarkMode;
-            ApplyTheme();
-        }
+            Title = $"Disclite - {username} @ {serverIP}:{serverPort}";
 
-        private void ApplyTheme()
-        {
-            if (isDarkMode)
+            // avoid double-subscribe
+            if (client != null)
             {
-                ApplyDarkTheme();
-                ThemeToggleButton.Content = "☀️";
-            }
-            else
-            {
-                ApplyLightTheme();
-                ThemeToggleButton.Content = "🌙";
-            }
-            RefreshChatMessages();
-            UpdateOnlineUsersList();
-        }
+                client.MessageReceived -= OnMessageReceived;
+                client.MessageReceived += OnMessageReceived;
 
-        private void ApplyDarkTheme()
-        {
-            this.Background = new SolidColorBrush(Color.FromRgb(54, 57, 63));
-            
-            LeftSidebarBorder.Background = new SolidColorBrush(Color.FromRgb(47, 49, 54));
-            LeftSidebarBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(32, 34, 37));
-            OnlineUsersLabel.Foreground = new SolidColorBrush(Color.FromRgb(220, 221, 222));
-            OnlineUsersListBox.Background = new SolidColorBrush(Color.FromRgb(64, 68, 75));
-            OnlineUsersListBox.BorderBrush = new SolidColorBrush(Color.FromRgb(32, 34, 37));
-            OnlineUsersListBox.Foreground = new SolidColorBrush(Color.FromRgb(220, 221, 222));
-            
-            ChatBorder.Background = new SolidColorBrush(Color.FromRgb(54, 57, 63));
-            TopBarBorder.Background = new SolidColorBrush(Color.FromRgb(47, 49, 54));
-            TopBarBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(32, 34, 37));
-            ChatTitleLabel.Foreground = new SolidColorBrush(Color.FromRgb(220, 221, 222));
-            
-            InputAreaBorder.Background = new SolidColorBrush(Color.FromRgb(54, 57, 63));
-            InputAreaBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(32, 34, 37));
-            MessageTextBox.Background = new SolidColorBrush(Color.FromRgb(64, 68, 75));
-            MessageTextBox.Foreground = new SolidColorBrush(Color.FromRgb(220, 221, 222));
-            MessageTextBox.BorderBrush = new SolidColorBrush(Color.FromRgb(32, 34, 37));
-            PlaceholderText.Foreground = new SolidColorBrush(Color.FromRgb(114, 118, 125));
-            
-            ChatMessagesBorder.Background = new SolidColorBrush(Color.FromRgb(54, 57, 63));
-            ChatMessagesBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(32, 34, 37));
-            
-            ThemeToggleButton.BorderBrush = new SolidColorBrush(Color.FromRgb(32, 34, 37));
-        }
-
-        private void ApplyLightTheme()
-        {
-            this.Background = new SolidColorBrush(Colors.White);
-            
-            LeftSidebarBorder.Background = new SolidColorBrush(Color.FromRgb(246, 246, 246));
-            LeftSidebarBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224));
-            OnlineUsersLabel.Foreground = new SolidColorBrush(Color.FromRgb(44, 47, 51));
-            OnlineUsersListBox.Background = new SolidColorBrush(Colors.White);
-            OnlineUsersListBox.BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224));
-            OnlineUsersListBox.Foreground = new SolidColorBrush(Color.FromRgb(44, 47, 51));
-            
-            ChatBorder.Background = new SolidColorBrush(Colors.White);
-            TopBarBorder.Background = new SolidColorBrush(Color.FromRgb(246, 246, 246));
-            TopBarBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224));
-            ChatTitleLabel.Foreground = new SolidColorBrush(Color.FromRgb(44, 47, 51));
-            
-            InputAreaBorder.Background = new SolidColorBrush(Colors.White);
-            InputAreaBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224));
-            MessageTextBox.Background = new SolidColorBrush(Color.FromRgb(246, 246, 246));
-            MessageTextBox.Foreground = new SolidColorBrush(Color.FromRgb(44, 47, 51));
-            MessageTextBox.BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224));
-            PlaceholderText.Foreground = new SolidColorBrush(Color.FromRgb(138, 138, 138));
-            
-            ChatMessagesBorder.Background = new SolidColorBrush(Colors.White);
-            ChatMessagesBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224));
-            
-            ThemeToggleButton.BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224));
-        }
-
-        private void RefreshChatMessages()
-        {
-            foreach (UIElement element in ChatPanel.Children)
-            {
-                if (element is TextBlock textBlock)
+                // send registration shortly after UI ready
+                _ = Task.Run(async () =>
                 {
-                    if (textBlock.FontStyle == FontStyles.Italic)
-                    {
-                        textBlock.Foreground = isDarkMode ? 
-                            new SolidColorBrush(Color.FromRgb(114, 118, 125)) : 
-                            Brushes.Gray;
-                    }
-                    else if (textBlock.Text.StartsWith($"[{username}]:"))
-                    {
-                        textBlock.Foreground = Brushes.Blue;
-                    }
-                    else
-                    {
-                        textBlock.Foreground = isDarkMode ? 
-                            new SolidColorBrush(Color.FromRgb(220, 221, 222)) : 
-                            Brushes.Black;
-                    }
-                }
+                    await Task.Delay(300);
+                    await SendRegistrationMessage();
+                });
             }
         }
+
+        private void CommonInit()
+        {
+            // typing timer
+            typingTimer = new System.Timers.Timer(2000);
+            typingTimer.Elapsed += TypingTimeout;
+            typingTimer.AutoReset = false;
+
+            // ensure handlers attached only once (in case called twice)
+            SendButton.Click -= SendButton_Click;
+            SendButton.Click += SendButton_Click;
+
+            MessageTextBox.KeyDown -= MessageTextBox_KeyDown;
+            MessageTextBox.KeyDown += MessageTextBox_KeyDown;
+
+            MessageTextBox.TextChanged -= MessageTextBox_TextChanged;
+            MessageTextBox.TextChanged += MessageTextBox_TextChanged;
+
+            // set initial brushes (light theme)
+            ApplyLightTheme();
+        }
+
         private async Task SendRegistrationMessage()
         {
             if (client?.IsConnected == true)
@@ -164,6 +97,7 @@ namespace DisClient
             }
         }
 
+        // Handle incoming messages (this is invoked from client's thread)
         private void OnMessageReceived(string message)
         {
             if (!Dispatcher.CheckAccess())
@@ -174,43 +108,175 @@ namespace DisClient
 
             try
             {
-                var messagePacket = JsonSerializer.Deserialize<MessagePackage>(message);
-        
-                switch (messagePacket.type)
+                var packet = JsonSerializer.Deserialize<MessagePackage>(message);
+                if (packet == null)
+                {
+                    // raw system / fallback
+                    Messages.Add(new ChatMessage { Username = "System", Text = message, Timestamp = DateTime.Now.ToString("HH:mm") });
+                    ChatScrollViewer?.ScrollToEnd();
+                    return;
+                }
+
+                switch (packet.type)
                 {
                     case "system":
-                        AddSystemMessage(messagePacket.package);
+                        Messages.Add(new ChatMessage { Username = "System", Text = packet.package ?? string.Empty, Timestamp = DateTime.Now.ToString("HH:mm") });
                         break;
-                
+
                     case "chat":
-                        AddChatMessage(messagePacket.from, messagePacket.package, messagePacket.timestamp);
+                        // When server broadcasts to all clients (including sender),
+                        // we avoid local-echo; just show the server message here.
+                        Messages.Add(new ChatMessage
+                        {
+                            Username = packet.from ?? "Unknown",
+                            Text = packet.package ?? string.Empty,
+                            Timestamp = (packet.timestamp?.ToString() ?? DateTime.Now.ToString("HH:mm"))
+                        });
+
+                        // hide typing indicator for that user
+                        if (packet.from == username)
+                        {
+                            TypingIndicator.Text = string.Empty;
+                            TypingIndicator.Visibility = Visibility.Collapsed;
+                        }
                         break;
-                        
+
                     case "users_list":
-                        HandleUsersList(messagePacket.package);
+                        HandleUsersList(packet.package);
                         break;
-                        
+
                     case "user_joined":
-                        HandleUserJoined(messagePacket.package);
+                        HandleUserJoined(packet.package);
                         break;
-                        
+
                     case "user_left":
-                        HandleUserLeft(messagePacket.package);
+                        HandleUserLeft(packet.package);
                         break;
-                
+
+                    case "typing":
+                        HandleTyping(packet.from, packet.package);
+                        break;
+
                     default:
-                        AddSystemMessage($"Unknown message: {message}");
+                        Messages.Add(new ChatMessage { Username = "System", Text = $"Unknown message type: {packet.type}", Timestamp = DateTime.Now.ToString("HH:mm") });
                         break;
                 }
-            }
-            catch (JsonException)
-            {
-                AddSystemMessage(message);
+
+                ChatScrollViewer?.ScrollToEnd();
             }
             catch (Exception ex)
             {
-                AddSystemMessage($"Error: {ex.Message}");
+                Messages.Add(new ChatMessage { Username = "System", Text = $"Parsing error: {ex.Message}", Timestamp = DateTime.Now.ToString("HH:mm") });
             }
+        }
+
+        // Send button handler
+        private async void SendButton_Click(object sender, RoutedEventArgs e)
+        {
+            await SendMessageAsync();
+        }
+
+        // Enter to send, Shift+Enter to newline
+        private async void MessageTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && Keyboard.Modifiers != ModifierKeys.Shift)
+            {
+                e.Handled = true;
+                await SendMessageAsync();
+            }
+        }
+
+        // IMPORTANT: when connected we do NOT locally add a message to avoid double-echo.
+        // The server will broadcast it back and OnMessageReceived will display it.
+        private async Task SendMessageAsync()
+        {
+            string text = MessageTextBox.Text.Trim();
+            if (string.IsNullOrEmpty(text)) return;
+
+            if (client?.IsConnected == true)
+            {
+                var chatPacket = new MessagePackage
+                {
+                    type = "chat",
+                    from = username,
+                    package = text
+                };
+
+                string json = JsonSerializer.Serialize(chatPacket);
+                await client.SendMessageAsync(json);
+            }
+            else
+            {
+                // offline/local mode: show message locally
+                Messages.Add(new ChatMessage
+                {
+                    Username = "Me",
+                    Text = text,
+                    Timestamp = DateTime.Now.ToString("HH:mm")
+                });
+            }
+
+            MessageTextBox.Clear();
+            ChatScrollViewer?.ScrollToEnd();
+        }
+
+        private void MessageTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Placeholder visibility handled by XAML DataTrigger; keep typing logic here.
+            if (string.IsNullOrWhiteSpace(MessageTextBox.Text))
+            {
+                TypingIndicator.Visibility = Visibility.Collapsed;
+                isTyping = false;
+                _ = SendTypingStatus(false);
+                return;
+            }
+
+            if (!isTyping)
+            {
+                isTyping = true;
+                _ = SendTypingStatus(true);
+            }
+
+            typingTimer.Stop();
+            typingTimer.Start();
+            TypingIndicator.Visibility = Visibility.Visible;
+        }
+
+        private void TypingTimeout(object? sender, System.Timers.ElapsedEventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                isTyping = false;
+                TypingIndicator.Visibility = Visibility.Collapsed;
+            });
+            _ = SendTypingStatus(false);
+        }
+
+        private async Task SendTypingStatus(bool typing)
+        {
+            if (client?.IsConnected == true)
+            {
+                var typingPacket = new MessagePackage
+                {
+                    type = "typing",
+                    from = username,
+                    package = typing ? "true" : "false"
+                };
+
+                string json = JsonSerializer.Serialize(typingPacket);
+                await client.SendMessageAsync(json);
+            }
+        }
+
+        private void HandleUsersList(string usersJson)
+        {
+            try
+            {
+                var users = JsonSerializer.Deserialize<List<string>>(usersJson) ?? new List<string>();
+                onlineUsers = users;
+                UpdateOnlineUsersList();
+            }
+            catch { /* ignore parse errors */ }
         }
 
         private void HandleUserJoined(string user)
@@ -230,132 +296,79 @@ namespace DisClient
             }
         }
 
-        private void HandleUsersList(string usersJson)
-        {
-            var users = JsonSerializer.Deserialize<List<string>>(usersJson);
-            onlineUsers = users ?? new List<string>();
-            UpdateOnlineUsersList();
-        }
-
-
         private void UpdateOnlineUsersList()
         {
             OnlineUsersListBox.Items.Clear();
-            
+
             foreach (string user in onlineUsers.OrderBy(u => u))
             {
                 var listItem = new ListBoxItem
                 {
                     Content = user,
-                    Foreground = user == username ? 
-                        Brushes.Blue : 
-                        (isDarkMode ? new SolidColorBrush(Color.FromRgb(220, 221, 222)) : Brushes.Black),
+                    Foreground = user == username ? Brushes.Blue : (isDarkMode ? new SolidColorBrush(Color.FromRgb(220, 221, 222)) : Brushes.Black),
                     Margin = new Thickness(5, 2, 5, 2)
                 };
-                
+
                 OnlineUsersListBox.Items.Add(listItem);
             }
         }
 
-        private void AddChatMessage(string sender, string messageContent, DateTime? serverTimestamp = null)
+        private void HandleTyping(string user, string isTypingStr)
         {
-            var messagePanel = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Margin = new Thickness(5)
-            };
+            if (user == username) return; // ignore our own typing
 
-            var messageBlock = new TextBlock
-            {
-                Text = $"[{sender}]: {messageContent}",
-                Foreground = sender == username ?
-                    Brushes.Blue :
-                    (isDarkMode ? new SolidColorBrush(Color.FromRgb(220, 221, 222)) : Brushes.Black),
-                TextWrapping = TextWrapping.Wrap,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-
-            var timeToShow = serverTimestamp ?? DateTime.Now;
-            var timeBlock = new TextBlock
-            {
-                Text = timeToShow.ToString("HH:mm"),
-                Foreground = isDarkMode ?
-                    new SolidColorBrush(Color.FromRgb(114, 118, 125)) :
-                    Brushes.Gray,
-                Margin = new Thickness(10, 0, 0, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Right
-            };
-
-            messagePanel.Children.Add(messageBlock);
-            messagePanel.Children.Add(timeBlock);
-
-            ChatPanel.Children.Add(messagePanel);
-            ChatScrollViewer.ScrollToEnd();
+            bool otherTyping = string.Equals(isTypingStr, "true", StringComparison.OrdinalIgnoreCase);
+            TypingIndicator.Text = otherTyping ? $"{user} is typing..." : string.Empty;
+            TypingIndicator.Visibility = otherTyping ? Visibility.Visible : Visibility.Collapsed;
         }
 
-
-
-        private void AddSystemMessage(string message)
+        // THEME: update dynamic resources so DataTemplate repaints instantly
+        private void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
         {
-            TextBlock messageBlock = new TextBlock
-            {
-                Text = message,
-                Foreground = isDarkMode ? 
-                    new SolidColorBrush(Color.FromRgb(114, 118, 125)) : 
-                    Brushes.Gray,
-                Margin = new Thickness(5),
-                TextWrapping = TextWrapping.Wrap,
-                FontStyle = FontStyles.Italic
-            };
-            
-            ChatPanel.Children.Add(messageBlock);
-            ChatScrollViewer.ScrollToEnd();
+            isDarkMode = !isDarkMode;
+            if (isDarkMode) ApplyDarkTheme();
+            else ApplyLightTheme();
         }
 
-        private async void SendButton_Click(object sender, RoutedEventArgs e)
+        private void ApplyDarkTheme()
         {
-            string message = MessageTextBox.Text.Trim();
-            if (!string.IsNullOrEmpty(message) && client?.IsConnected == true)
-            {
-                var chatPacket = new MessagePackage
-                {
-                    type = "chat",
-                    from = username,
-                    package = message
-                };
-
-                string json = JsonSerializer.Serialize(chatPacket);
-                await client.SendMessageAsync(json);
-                
-                MessageTextBox.Clear();
-                PlaceholderText.Visibility = Visibility.Visible;
-            }
+            Resources["WindowBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(54, 57, 63));
+            Resources["SidebarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(47, 49, 54));
+            Resources["BorderBrush"] = new SolidColorBrush(Color.FromRgb(32, 34, 37));
+            Resources["UsernameBrush"] = new SolidColorBrush(Color.FromRgb(220, 221, 222));
+            Resources["TimestampBrush"] = new SolidColorBrush(Color.FromRgb(114, 118, 125));
+            Resources["MessageBrush"] = new SolidColorBrush(Color.FromRgb(220, 221, 222));
+            Resources["PlaceholderBrush"] = new SolidColorBrush(Color.FromRgb(114, 118, 125));
         }
 
-        private void MessageTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        private void ApplyLightTheme()
         {
-            if (e.Key == System.Windows.Input.Key.Enter)
-            {
-                SendButton_Click(sender, new RoutedEventArgs());
-            }
-        }
-
-        private void MessageTextBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(MessageTextBox.Text))
-            {
-                PlaceholderText.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                PlaceholderText.Visibility = Visibility.Collapsed;
-            }
+            Resources["WindowBackgroundBrush"] = new SolidColorBrush(Colors.White);
+            Resources["SidebarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(246, 246, 246));
+            Resources["BorderBrush"] = new SolidColorBrush(Color.FromRgb(224, 224, 224));
+            Resources["UsernameBrush"] = new SolidColorBrush(Color.FromRgb(44, 47, 51));
+            Resources["TimestampBrush"] = new SolidColorBrush(Color.FromRgb(119, 119, 119));
+            Resources["MessageBrush"] = new SolidColorBrush(Color.FromRgb(17, 17, 17));
+            Resources["PlaceholderBrush"] = new SolidColorBrush(Color.FromRgb(18, 138, 138));
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            client?.Disconnect();
+            if (client != null)
+            {
+                client.MessageReceived -= OnMessageReceived;
+                client.Disconnect();
+            }
+
+            typingTimer?.Stop();
+            typingTimer?.Dispose();
         }
+    }
+
+    public class ChatMessage
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Text { get; set; } = string.Empty;
+        public string Timestamp { get; set; } = string.Empty;
     }
 }
