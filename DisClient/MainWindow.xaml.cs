@@ -335,10 +335,13 @@ namespace DisClient
             Resources["WindowBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(54, 57, 63));
             Resources["SidebarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(47, 49, 54));
             Resources["BorderBrush"] = new SolidColorBrush(Color.FromRgb(32, 34, 37));
-            Resources["UsernameBrush"] = new SolidColorBrush(Color.FromRgb(220, 221, 222));
+            Resources["UsernameBrush"] = new SolidColorBrush(Color.FromRgb(255, 255, 255));
             Resources["TimestampBrush"] = new SolidColorBrush(Color.FromRgb(114, 118, 125));
             Resources["MessageBrush"] = new SolidColorBrush(Color.FromRgb(220, 221, 222));
             Resources["PlaceholderBrush"] = new SolidColorBrush(Color.FromRgb(114, 118, 125));
+            Resources["OnlineBarBrush"] = new SolidColorBrush(Color.FromRgb(52, 54, 59));
+            Resources["TypeBrush"] = new SolidColorBrush(Color.FromRgb(255, 255, 255));
+            Resources["ChatBrush"] = new SolidColorBrush(Color.FromRgb(49, 49, 52));
         }
 
         private void ApplyLightTheme()
@@ -346,10 +349,13 @@ namespace DisClient
             Resources["WindowBackgroundBrush"] = new SolidColorBrush(Colors.White);
             Resources["SidebarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(246, 246, 246));
             Resources["BorderBrush"] = new SolidColorBrush(Color.FromRgb(224, 224, 224));
-            Resources["UsernameBrush"] = new SolidColorBrush(Color.FromRgb(44, 47, 51));
+            Resources["UsernameBrush"] = new SolidColorBrush(Color.FromRgb(0, 0, 0));
             Resources["TimestampBrush"] = new SolidColorBrush(Color.FromRgb(119, 119, 119));
             Resources["MessageBrush"] = new SolidColorBrush(Color.FromRgb(17, 17, 17));
-            Resources["PlaceholderBrush"] = new SolidColorBrush(Color.FromRgb(18, 138, 138));
+            Resources["PlaceholderBrush"] = new SolidColorBrush(Color.FromRgb(138, 138, 138));
+            Resources["OnlineBarBrush"] = new SolidColorBrush(Color.FromRgb(212, 212, 212));
+            Resources["TypeBrush"] = new SolidColorBrush(Color.FromRgb(0, 0, 0));
+            Resources["ChatBrush"] = new SolidColorBrush(Color.FromRgb(239, 239, 238));
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -362,6 +368,11 @@ namespace DisClient
 
             typingTimer?.Stop();
             typingTimer?.Dispose();
+        }
+
+        private void OnlineUsersListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
         }
     }
 
