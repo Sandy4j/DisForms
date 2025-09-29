@@ -17,9 +17,42 @@
         <Border x:Name="ChatBorder" Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0" Grid.Column="1">
             <DockPanel>
                 <!-- Top Bar -->
-                <Border x:Name="TopBarBorder" Background="{DynamicResource SidebarBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" DockPanel.Dock="Top" Height="40">
-                    <TextBlock x:Name="ChatTitleLabel" Text="General Chat" Foreground="{DynamicResource UsernameBrush}" VerticalAlignment="Center" Margin="10" FontWeight="Bold"/>
+                <Border x:Name="TopBarBorder" 
+        Background="{DynamicResource SidebarBackgroundBrush}" 
+        BorderBrush="{DynamicResource BorderBrush}" 
+        BorderThickness="0,0,0,1" 
+        DockPanel.Dock="Top" 
+        Height="40">
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Title on the left -->
+                        <TextBlock x:Name="ChatTitleLabel" 
+                           Text="General Chat" 
+                           Foreground="{DynamicResource UsernameBrush}" 
+                           VerticalAlignment="Center" 
+                           Margin="10" 
+                           FontWeight="Bold" 
+                           Grid.Column="0"/>
+
+                        <!-- Disconnect button on the right -->
+                        <Button x:Name="DisconnectButton" 
+                        Content="Disconnect" 
+                        Grid.Column="1" 
+                        Width="100" Height="30" 
+                        Margin="0,0,10,0"
+                        VerticalAlignment="Center" 
+                        Background="#E74C3C" 
+                        Foreground="White" 
+                        BorderBrush="#C0392B" 
+                        Click="DisconnectButton_Click"/>
+                    </Grid>
                 </Border>
+
                 <!-- Typing indicator -->
                 <TextBlock x:Name="TypingIndicator" Text="" Foreground="{DynamicResource PlaceholderBrush}" FontStyle="Italic" Margin="10,0,0,5" VerticalAlignment="Bottom" DockPanel.Dock="Bottom" Visibility="Collapsed"/>
                 <!-- Bottom Input Area -->

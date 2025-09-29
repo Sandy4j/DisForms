@@ -374,6 +374,11 @@ namespace DisClient
         {
 
         }
+
+        private void DisconnectButton_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
     }
 
     public class ChatMessage
