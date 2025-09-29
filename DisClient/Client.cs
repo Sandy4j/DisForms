@@ -8,7 +8,22 @@ using System.Threading.Tasks;
 
 namespace DisClient
 {
-    public class Client
+    internal class MessagePackage
+    {
+        [JsonPropertyName("type")]
+        public string type { get; set; } = string.Empty;
+
+        [JsonPropertyName("from")]
+        public string from { get; set; } = string.Empty;
+
+        [JsonPropertyName("package")]
+        public string package { get; set; } = string.Empty;
+
+        [JsonPropertyName("timestamp")]
+        public DateTime? timestamp { get; set; }
+    }
+
+    internal class Client
     {
         private TcpClient? tcpClient;
         private NetworkStream? stream;
@@ -69,21 +84,6 @@ namespace DisClient
             stream?.Close();
             tcpClient?.Close();
         }
-    }
-
-    public class MessagePackage
-    {
-        [JsonPropertyName("type")]
-        public string type { get; set; } = string.Empty;
-    
-        [JsonPropertyName("from")]
-        public string from { get; set; } = string.Empty;
-    
-        [JsonPropertyName("package")]
-        public string package { get; set; } = string.Empty;
-    
-        [JsonPropertyName("timestamp")]
-        public DateTime? timestamp { get; set; }
     }
 
 }

@@ -62,16 +62,16 @@ namespace DisServer
                     Console.WriteLine($"New client connection accepted from {temp_client.Client.RemoteEndPoint}");
 
                     ClientHandler temp_client_handler = new ClientHandler(temp_client, this);
-                    
-                    lock (clients)
+
+                    /*lock (clients)
                     {
                         clients.Add(temp_client_handler.client_id, temp_client_handler);
-                    }
-                    
+                    }*/
+
                     Console.WriteLine($"Total connected clients: {clients.Count}");
 
-                    // Handle client in background
                     _ = Task.Run(async () => await temp_client_handler.HandleClientAsync());
+                    
                 }
                 catch (Exception ex)
                 {
@@ -174,6 +174,19 @@ namespace DisServer
             {
                 Console.WriteLine($"Error broadcasting system message: {ex.Message}");
             }
+
+            if (clients.Count > 0)
+            {
+                foreach (var item in clients)
+                {
+                    if (item.Value.username != client.username) continue;
+
+                    RemoveClient(item.Value);
+                    return;
+                }
+            }
+
+            clients.Add(client.client_id, client);
         }
 
         public async Task BroadcastUsersList()
