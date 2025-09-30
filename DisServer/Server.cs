@@ -62,20 +62,20 @@ namespace DisServer
                     Console.WriteLine($"New client connection accepted from {temp_client.Client.RemoteEndPoint}");
 
                     ClientHandler temp_client_handler = new ClientHandler(temp_client, this);
-
-                    /*lock (clients)
-                    {
-                        clients.Add(temp_client_handler.client_id, temp_client_handler);
-                    }*/
-
                     Console.WriteLine($"Total connected clients: {clients.Count}");
 
                     _ = Task.Run(async () => await temp_client_handler.HandleClientAsync());
+                    clients.Add(temp_client_handler.client_id, temp_client_handler);
                     
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Error accepting client: {ex.Message}");
+                }
+
+                foreach (var Items in clients)
+                {
+                    Console.WriteLine(Items.Value.username);
                 }
             }
         }
@@ -97,7 +97,6 @@ namespace DisServer
             string json_package = System.Text.Json.JsonSerializer.Serialize(package, options);
             Console.WriteLine($"Broadcasting typing status: {json_package}");
         
-            // Send to all registered clients except sender
             var targetClients = clients.Values
                 .Where(c => !string.IsNullOrEmpty(c.username) && c != sender)
                 .ToList();
@@ -205,7 +204,7 @@ namespace DisServer
             {
                 tasks.Add(item.SendMessageAsync(json_package));
             }
-            
+
             try
             {
                 await Task.WhenAll(tasks);
@@ -215,29 +214,27 @@ namespace DisServer
             {
                 Console.WriteLine($"Error broadcasting system message: {ex.Message}");
             }
-
-            if (clients.Count > 0)
-            {
-                foreach (var item in clients)
-                {
-                    if (item.Value.username != client.username) continue;
-
-                    RemoveClient(item.Value);
-                    return;
-                }
-            }
-
             clients.Add(client.client_id, client);
         }
 
         public async Task BroadcastUsersList()
         {
-            var usernames = clients.Values
-                .Where(c => !string.IsNullOrEmpty(c.username))
-                .Select(c => c.username)
-                .ToList();
+            List<string> usernames;
+            List<ClientHandler> registeredClients;
+    
+            lock (clients)
+            {
+                usernames = clients.Values
+                    .Where(c => !string.IsNullOrEmpty(c.username))
+                    .Select(c => c.username)
+                    .ToList();
+        
+                registeredClients = clients.Values
+                    .Where(c => !string.IsNullOrEmpty(c.username))
+                    .ToList();
+            }
 
-            Console.WriteLine($"Broadcasting users list: [{string.Join(", ", usernames)}]");
+            Console.WriteLine($"Broadcasting users list: [{string.Join(", ", usernames)}] to {registeredClients.Count} clients");
 
             var package = new MessagePackage
             {
@@ -254,16 +251,12 @@ namespace DisServer
             string json_package = System.Text.Json.JsonSerializer.Serialize(package, options);
             Console.WriteLine($"Users list JSON: {json_package}");
 
-            // Send to all registered clients
-            var registeredClients = clients.Values.Where(c => !string.IsNullOrEmpty(c.username)).ToList();
-            Console.WriteLine($"Sending users list to {registeredClients.Count} clients");
-            
             var tasks = new List<Task>();
             foreach (var item in registeredClients)
             {
                 tasks.Add(item.SendMessageAsync(json_package));
             }
-            
+    
             try
             {
                 await Task.WhenAll(tasks);
@@ -273,6 +266,35 @@ namespace DisServer
             {
                 Console.WriteLine($"Error broadcasting users list: {ex.Message}");
             }
+        }
+        
+        public bool IsUsernameTaken(string username)
+        {
+            lock (clients)
+            {
+                return clients.Values.Any(c => 
+                    !string.IsNullOrEmpty(c.username) && 
+                    c.username.Equals(username, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        public async Task SendRegistrationResponse(ClientHandler client, bool success, string message)
+        {
+            var package = new MessagePackage
+            {
+                type = "registration_response",
+                from = "server",
+                package = message,
+                timestamp = DateTime.Now
+            };
+
+            var options = new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+            };
+
+            string json_package = System.Text.Json.JsonSerializer.Serialize(package, options);
+            await client.SendMessageAsync(json_package);
         }
 
         public void RemoveClient(ClientHandler? client = null)

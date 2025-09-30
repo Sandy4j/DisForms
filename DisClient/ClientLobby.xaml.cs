@@ -74,10 +74,9 @@ public partial class ClientLobby : Window
             ConnectButton_Click(sender, new RoutedEventArgs());
         }
     }
-
+    
     private async void ConnectButton_Click(object sender, RoutedEventArgs e)
     {
-        //Validasi Input
         if (string.IsNullOrWhiteSpace(UsernameTextBox.Text))
         {
             ShowStatus("Please enter a username.", true);
@@ -105,26 +104,69 @@ public partial class ClientLobby : Window
             Client testClient = new Client();
             bool connected = await testClient.ConnectAsync(ServerIPTextBox.Text, port, UsernameTextBox.Text.Trim());
             
-            if (connected)
+            if (!connected)
             {
-                ShowStatus("Connected successfully!", false);
-                await Task.Delay(500);
-                
-                MainWindow mainWindow = new MainWindow(
-                    testClient, 
-                    UsernameTextBox.Text.Trim(),
-                    ServerIPTextBox.Text,
-                    port
-                );
-                
-                mainWindow.Show();
-                this.Close();
-            }
-            else
-            {
-                ShowStatus("Failed to connect to server. Please check your connection details.", true);
+                ShowStatus("Failed to connect to server.", true);
                 testClient?.Disconnect();
+                return;
             }
+
+            // Setup handler untuk cek response
+            bool? registrationSuccess = null;
+            var tcs = new TaskCompletionSource<bool>();
+
+            void OnRegistrationResponse(string message)
+            {
+                try
+                {
+                    var packet = System.Text.Json.JsonSerializer.Deserialize<MessagePackage>(message);
+                    if (packet?.type == "registration_response")
+                    {
+                        registrationSuccess = packet.package == "success";
+                        tcs.TrySetResult(true);
+                    }
+                }
+                catch { }
+            }
+
+            testClient.MessageReceived += OnRegistrationResponse;
+
+            // Send registration seperti biasa
+            var registrationPacket = new MessagePackage
+            {
+                type = "register",
+                from = UsernameTextBox.Text.Trim(),
+                package = ""
+            };
+            string json = System.Text.Json.JsonSerializer.Serialize(registrationPacket);
+            await testClient.SendMessageAsync(json);
+
+            // Tunggu response
+            var timeoutTask = Task.Delay(3000);
+            var completedTask = await Task.WhenAny(tcs.Task, timeoutTask);
+
+            testClient.MessageReceived -= OnRegistrationResponse;
+
+            if (completedTask == timeoutTask || registrationSuccess != true)
+            {
+                ShowStatus("Username is already taken. Please choose another username.", true);
+                testClient?.Disconnect();
+                return;
+            }
+
+            // Success - buka MainWindow seperti sebelumnya
+            ShowStatus("Connected successfully!", false);
+            await Task.Delay(500);
+            
+            MainWindow mainWindow = new MainWindow(
+                testClient, 
+                UsernameTextBox.Text.Trim(),
+                ServerIPTextBox.Text,
+                port
+            );
+            
+            mainWindow.Show();
+            this.Close();
         }
         catch (Exception ex)
         {
@@ -136,7 +178,15 @@ public partial class ClientLobby : Window
             LoadingPanel.Visibility = Visibility.Collapsed;
         }
     }
-
+    
+    internal class MessagePackage
+    {
+        public string type { get; set; } = string.Empty;
+        public string from { get; set; } = string.Empty;
+        public string package { get; set; } = string.Empty;
+        public DateTime? timestamp { get; set; }
+    }
+    
     private void ShowStatus(string message, bool isError)
     {
         StatusTextBlock.Text = message;

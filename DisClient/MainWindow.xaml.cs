@@ -14,8 +14,6 @@ namespace DisClient
     public partial class MainWindow : Window
     {
         public ObservableCollection<ChatMessage> Messages { get; set; } = new();
-
-        // fully-qualified timer type to avoid ambiguity
         private System.Timers.Timer typingTimer;
 
         private Client client;
@@ -26,7 +24,6 @@ namespace DisClient
         private bool isDarkMode = false;
         private bool isTyping = false;
 
-        // Keep both ctors (designer-safe + the one that accepts args)
         public MainWindow()
         {
             InitializeComponent();
@@ -37,7 +34,6 @@ namespace DisClient
         public MainWindow(Client connectedClient, string userName, string srvIP, int srvPort)
             : this()
         {
-            // store connection info
             client = connectedClient;
             username = userName ?? string.Empty;
             serverIP = srvIP ?? string.Empty;
@@ -45,29 +41,19 @@ namespace DisClient
 
             Title = $"Disclite - {username} @ {serverIP}:{serverPort}";
 
-            // avoid double-subscribe
             if (client != null)
             {
                 client.MessageReceived -= OnMessageReceived;
                 client.MessageReceived += OnMessageReceived;
-
-                // send registration shortly after UI ready
-                _ = Task.Run(async () =>
-                {
-                    await Task.Delay(300);
-                    await SendRegistrationMessage();
-                });
             }
         }
 
         private void CommonInit()
         {
-            // typing timer
             typingTimer = new System.Timers.Timer(2000);
             typingTimer.Elapsed += TypingTimeout;
             typingTimer.AutoReset = false;
 
-            // ensure handlers attached only once (in case called twice)
             SendButton.Click -= SendButton_Click;
             SendButton.Click += SendButton_Click;
 
@@ -76,8 +62,6 @@ namespace DisClient
 
             MessageTextBox.TextChanged -= MessageTextBox_TextChanged;
             MessageTextBox.TextChanged += MessageTextBox_TextChanged;
-
-            // set initial brushes (light theme)
             ApplyLightTheme();
         }
 
@@ -111,7 +95,6 @@ namespace DisClient
                 var packet = JsonSerializer.Deserialize<MessagePackage>(message);
                 if (packet == null)
                 {
-                    // raw system / fallback
                     Messages.Add(new ChatMessage { Username = "System", Text = message, Timestamp = DateTime.Now.ToString("HH:mm") });
                     ChatScrollViewer?.ScrollToEnd();
                     return;
@@ -142,6 +125,7 @@ namespace DisClient
                         break;
 
                     case "users_list":
+                        Console.WriteLine($"[CLIENT] Received users_list packet");
                         HandleUsersList(packet.package);
                         break;
 
@@ -272,11 +256,19 @@ namespace DisClient
         {
             try
             {
+                Console.WriteLine($"[CLIENT] Received users list JSON: {usersJson}");
+        
                 var users = JsonSerializer.Deserialize<List<string>>(usersJson) ?? new List<string>();
+        
+                Console.WriteLine($"[CLIENT] Parsed {users.Count} users: {string.Join(", ", users)}");
+        
                 onlineUsers = users;
                 UpdateOnlineUsersList();
             }
-            catch { /* ignore parse errors */ }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[CLIENT] Error parsing users list: {ex.Message}");
+            }
         }
 
         private void HandleUserJoined(string user)
@@ -298,6 +290,8 @@ namespace DisClient
 
         private void UpdateOnlineUsersList()
         {
+            Console.WriteLine($"[CLIENT] Updating UI with {onlineUsers.Count} users");
+    
             OnlineUsersListBox.Items.Clear();
 
             foreach (string user in onlineUsers.OrderBy(u => u))
@@ -310,6 +304,7 @@ namespace DisClient
                 };
 
                 OnlineUsersListBox.Items.Add(listItem);
+                Console.WriteLine($"[CLIENT] Added user to list: {user}");
             }
         }
 
