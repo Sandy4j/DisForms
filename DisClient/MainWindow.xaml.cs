@@ -377,7 +377,12 @@ namespace DisClient
 
         private void DisconnectButton_Click(object sender, RoutedEventArgs e)
         {
-
+            client.Disconnect();
+            SendButton.IsEnabled = false;
+            MessageTextBox.IsEnabled = false;
+            TypingIndicator.Text = "Disconnected";
+            TypingIndicator.Visibility = Visibility.Visible;
+            Close();
         }
     }
 

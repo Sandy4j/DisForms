@@ -84,6 +84,19 @@ namespace DisServer
                                 Console.WriteLine($"Chat message from {this.username}: {packet.package}");
                                 await server.BroadcastChatMessage(this.username, packet.package, this);
                                 break;
+                            
+                            case "typing":
+                                if (string.IsNullOrEmpty(this.username))
+                                {
+                                    Console.WriteLine($"Typing status rejected - user not registered: {client_id}");
+                                    break;
+                                }
+                                
+                                bool isTyping = string.Equals(packet.package, "true", StringComparison.OrdinalIgnoreCase);
+                                Console.WriteLine($"Typing status from {this.username}: {isTyping}");
+                                await server.BroadcastTypingStatus(this.username, isTyping, this);
+                                break;
+                            
                                 
                             case "pm":
                                 Console.WriteLine($"Private message from {username ?? client_id}: {packet.package}");

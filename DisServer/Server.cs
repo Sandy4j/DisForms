@@ -79,6 +79,48 @@ namespace DisServer
                 }
             }
         }
+        
+        public async Task BroadcastTypingStatus(string username, bool isTyping, ClientHandler? sender = null)
+        {
+            var package = new MessagePackage
+            {
+                type = "typing",
+                from = username,
+                package = isTyping ? "true" : "false"
+            };
+        
+            var options = new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+            };
+        
+            string json_package = System.Text.Json.JsonSerializer.Serialize(package, options);
+            Console.WriteLine($"Broadcasting typing status: {json_package}");
+        
+            // Send to all registered clients except sender
+            var targetClients = clients.Values
+                .Where(c => !string.IsNullOrEmpty(c.username) && c != sender)
+                .ToList();
+        
+            Console.WriteLine($"Sending typing status to {targetClients.Count} clients");
+        
+            var tasks = new List<Task>();
+            foreach (var client in targetClients)
+            {
+                tasks.Add(client.SendMessageAsync(json_package));
+            }
+        
+            try
+            {
+                await Task.WhenAll(tasks);
+                Console.WriteLine("Typing status broadcast completed");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error broadcasting typing status: {ex.Message}");
+            }
+        }
+        
 
         public async Task BroadcastChatMessage(string username, string message, ClientHandler? client = null)
         {
@@ -152,7 +194,6 @@ namespace DisServer
             string json_package = System.Text.Json.JsonSerializer.Serialize(package, options);
             Console.WriteLine($"System message JSON: {json_package}");
 
-            // Send to all registered clients except the sender
             var targetClients = clients.Values
                 .Where(c => !string.IsNullOrEmpty(c.username) && c != client)
                 .ToList();

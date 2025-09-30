@@ -23,7 +23,7 @@ namespace DisClient
         public DateTime? timestamp { get; set; }
     }
 
-    internal class Client
+    public class Client
     {
         private TcpClient? tcpClient;
         private NetworkStream? stream;
