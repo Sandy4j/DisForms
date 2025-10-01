@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace DisClient
 {
-    internal class MessagePackage
+    public class MessagePackage
     {
         [JsonPropertyName("type")]
         public string type { get; set; } = string.Empty;
@@ -55,11 +55,13 @@ namespace DisClient
         {
             byte[] buffer = new byte[4096];
             
+            //while (true)
             while (IsConnected && tcpClient?.Connected == true)
             {
                 int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
                 string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
                 
+                Console.WriteLine(message);
                 MessageReceived?.Invoke(message);
             }
             

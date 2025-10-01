@@ -62,10 +62,10 @@ namespace DisServer
                     Console.WriteLine($"New client connection accepted from {temp_client.Client.RemoteEndPoint}");
 
                     ClientHandler temp_client_handler = new ClientHandler(temp_client, this);
+                    //clients.Add(temp_client_handler.client_id, temp_client_handler);
                     Console.WriteLine($"Total connected clients: {clients.Count}");
 
                     _ = Task.Run(async () => await temp_client_handler.HandleClientAsync());
-                    clients.Add(temp_client_handler.client_id, temp_client_handler);
                     
                 }
                 catch (Exception ex)
@@ -193,6 +193,8 @@ namespace DisServer
             string json_package = System.Text.Json.JsonSerializer.Serialize(package, options);
             Console.WriteLine($"System message JSON: {json_package}");
 
+            //if (clients.Count < 2) return; 
+
             var targetClients = clients.Values
                 .Where(c => !string.IsNullOrEmpty(c.username) && c != client)
                 .ToList();
@@ -219,8 +221,8 @@ namespace DisServer
 
         public async Task BroadcastUsersList()
         {
-            List<string> usernames;
-            List<ClientHandler> registeredClients;
+            List<string> usernames = new List<string>();
+            List<ClientHandler> registeredClients = new List<ClientHandler>();
     
             lock (clients)
             {
@@ -228,13 +230,15 @@ namespace DisServer
                     .Where(c => !string.IsNullOrEmpty(c.username))
                     .Select(c => c.username)
                     .ToList();
-        
+
                 registeredClients = clients.Values
                     .Where(c => !string.IsNullOrEmpty(c.username))
                     .ToList();
             }
 
+            Console.WriteLine("----------------------------------------");
             Console.WriteLine($"Broadcasting users list: [{string.Join(", ", usernames)}] to {registeredClients.Count} clients");
+            Console.WriteLine("----------------------------------------");
 
             var package = new MessagePackage
             {
@@ -242,6 +246,10 @@ namespace DisServer
                 from = "server",
                 package = System.Text.Json.JsonSerializer.Serialize(usernames)
             };
+
+            Console.WriteLine("----------------------------------------");
+            Console.WriteLine($"Broadcasting users list: [{string.Join(", ", package.type)}] to {registeredClients.Count} clients");
+            Console.WriteLine("----------------------------------------");
 
             var options = new System.Text.Json.JsonSerializerOptions
             {
@@ -254,6 +262,9 @@ namespace DisServer
             var tasks = new List<Task>();
             foreach (var item in registeredClients)
             {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine(item.username);
+                Console.WriteLine("----------------------------------------");
                 tasks.Add(item.SendMessageAsync(json_package));
             }
     
@@ -270,6 +281,8 @@ namespace DisServer
         
         public bool IsUsernameTaken(string username)
         {
+            if (clients.Count < 2) return false;
+
             lock (clients)
             {
                 return clients.Values.Any(c => 

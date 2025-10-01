@@ -125,7 +125,9 @@ namespace DisClient
                         break;
 
                     case "users_list":
+                        Console.WriteLine("----------------------------------------");
                         Console.WriteLine($"[CLIENT] Received users_list packet");
+                        Console.WriteLine("----------------------------------------");
                         HandleUsersList(packet.package);
                         break;
 
@@ -290,6 +292,8 @@ namespace DisClient
 
         private void UpdateOnlineUsersList()
         {
+            Console.WriteLine("UPDATE KONTOLLLLLL");
+
             Console.WriteLine($"[CLIENT] Updating UI with {onlineUsers.Count} users");
     
             OnlineUsersListBox.Items.Clear();
