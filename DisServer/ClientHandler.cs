@@ -70,7 +70,6 @@ namespace DisServer
                                     await server.SendRegistrationResponse(this, false, "username_taken");
                                     await Task.Delay(100);
 
-                                    // Disconnect client yang username-nya duplicate
                                     CleanUp();
                                     return;
                                 }
