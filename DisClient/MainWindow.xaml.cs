@@ -15,7 +15,6 @@ namespace DisClient
     {
         public ObservableCollection<ChatMessage> Messages { get; set; } = new();
 
-        // fully-qualified timer type to avoid ambiguity
         private System.Timers.Timer typingTimer;
 
         private Client client;
@@ -26,7 +25,6 @@ namespace DisClient
         private bool isDarkMode = false;
         private bool isTyping = false;
 
-        // Keep both ctors (designer-safe + the one that accepts args)
         public MainWindow()
         {
             InitializeComponent();
@@ -37,7 +35,6 @@ namespace DisClient
         public MainWindow(Client connectedClient, string userName, string srvIP, int srvPort)
             : this()
         {
-            // store connection info
             client = connectedClient;
             username = userName ?? string.Empty;
             serverIP = srvIP ?? string.Empty;
@@ -45,13 +42,15 @@ namespace DisClient
 
             Title = $"Disclite - {username} @ {serverIP}:{serverPort}";
 
-            // avoid double-subscribe
             if (client != null)
             {
+                // Unsubscribe dulu untuk menghindari multiple subscription
                 client.MessageReceived -= OnMessageReceived;
                 client.MessageReceived += OnMessageReceived;
+                
+                client.Disconnected -= OnDisconnected;
+                client.Disconnected += OnDisconnected;
 
-                // send registration shortly after UI ready
                 _ = Task.Run(async () =>
                 {
                     await Task.Delay(300);
@@ -62,12 +61,10 @@ namespace DisClient
 
         private void CommonInit()
         {
-            // typing timer
             typingTimer = new System.Timers.Timer(2000);
             typingTimer.Elapsed += TypingTimeout;
             typingTimer.AutoReset = false;
 
-            // ensure handlers attached only once (in case called twice)
             SendButton.Click -= SendButton_Click;
             SendButton.Click += SendButton_Click;
 
@@ -77,7 +74,6 @@ namespace DisClient
             MessageTextBox.TextChanged -= MessageTextBox_TextChanged;
             MessageTextBox.TextChanged += MessageTextBox_TextChanged;
 
-            // set initial brushes (light theme)
             ApplyLightTheme();
         }
 
@@ -94,10 +90,38 @@ namespace DisClient
 
                 string json = JsonSerializer.Serialize(registrationPacket);
                 await client.SendMessageAsync(json);
+                
+                Console.WriteLine("[UI] Registration message sent");
             }
         }
 
-        // Handle incoming messages (this is invoked from client's thread)
+        private void OnDisconnected()
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.Invoke(OnDisconnected);
+                return;
+            }
+
+            Console.WriteLine("[UI] Disconnected from server");
+            
+            Messages.Add(new ChatMessage 
+            { 
+                Username = "System", 
+                Text = "Disconnected from server. Attempting to reconnect...", 
+                Timestamp = DateTime.Now.ToString("HH:mm") 
+            });
+            
+            TypingIndicator.Text = "Reconnecting...";
+            TypingIndicator.Foreground = Brushes.Orange;
+            TypingIndicator.Visibility = Visibility.Visible;
+            
+            SendButton.IsEnabled = false;
+            MessageTextBox.IsEnabled = false;
+            
+            ChatScrollViewer?.ScrollToEnd();
+        }
+
         private void OnMessageReceived(string message)
         {
             if (!Dispatcher.CheckAccess())
@@ -105,13 +129,24 @@ namespace DisClient
                 Dispatcher.Invoke(() => OnMessageReceived(message));
                 return;
             }
+
             try
             {
-                var packet = JsonSerializer.Deserialize<MessagePackage>(message);
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                var packet = JsonSerializer.Deserialize<MessagePackage>(message, options);
+                
                 if (packet == null)
                 {
-                    // raw system / fallback
-                    Messages.Add(new ChatMessage { Username = "System", Text = message, Timestamp = DateTime.Now.ToString("HH:mm") });
+                    Messages.Add(new ChatMessage 
+                    { 
+                        Username = "System", 
+                        Text = message, 
+                        Timestamp = DateTime.Now.ToString("HH:mm") 
+                    });
                     ChatScrollViewer?.ScrollToEnd();
                     return;
                 }
@@ -119,67 +154,112 @@ namespace DisClient
                 switch (packet.type)
                 {
                     case "system":
-                        Messages.Add(new ChatMessage { Username = "System", Text = packet.package ?? string.Empty, Timestamp = DateTime.Now.ToString("HH:mm") });
+                        Messages.Add(new ChatMessage 
+                        { 
+                            Username = "System", 
+                            Text = packet.package ?? string.Empty, 
+                            Timestamp = DateTime.Now.ToString("HH:mm") 
+                        });
+                        
+                        // cek apakah ini pesan "joined the chat" untuk user kita
+                        if (packet.package?.Contains("joined the chat") == true && packet.package.Contains(username))
+                        {
+                            SendButton.IsEnabled = true;
+                            MessageTextBox.IsEnabled = true;
+                            TypingIndicator.Text = string.Empty;
+                            TypingIndicator.Visibility = Visibility.Collapsed;
+                            
+                            Messages.Add(new ChatMessage 
+                            { 
+                                Username = "System", 
+                                Text = "Reconnected successfully!", 
+                                Timestamp = DateTime.Now.ToString("HH:mm") 
+                            });
+                        }
                         break;
+
                     case "chat":
-                        // When server broadcasts to all clients (including sender),
-                        // we avoid local-echo; just show the server message here.
                         Messages.Add(new ChatMessage
                         {
                             Username = packet.from ?? "Unknown",
                             Text = packet.package ?? string.Empty,
-                            Timestamp = (packet.timestamp?.ToString() ?? DateTime.Now.ToString("HH:mm"))
+                            Timestamp = packet.timestamp?.ToString("HH:mm") ?? DateTime.Now.ToString("HH:mm")
                         });
 
-                        // hide typing indicator for that user
                         if (packet.from == username)
                         {
                             TypingIndicator.Text = string.Empty;
                             TypingIndicator.Visibility = Visibility.Collapsed;
                         }
                         break;
+
                     case "users_list":
                         HandleUsersList(packet.package);
                         break;
+
                     case "user_joined":
                         HandleUserJoined(packet.package);
                         break;
+
                     case "user_left":
                         HandleUserLeft(packet.package);
                         break;
+
                     case "typing":
                         HandleTyping(packet.from, packet.package);
                         break;
+
                     case "pm":
                         if (packet.to != username && packet.from != username) return;
 
                         Messages.Add(new ChatMessage
                         {
-                            Username = packet.from ?? "Unknown",
+                            Username = $"[PM] {packet.from}",
                             Text = packet.package ?? string.Empty,
-                            Timestamp = (packet.timestamp?.ToString() ?? DateTime.Now.ToString("HH:mm"))
+                            Timestamp = packet.timestamp?.ToString("HH:mm") ?? DateTime.Now.ToString("HH:mm")
                         });
                         break;
+
                     default:
-                        Messages.Add(new ChatMessage { Username = "System", Text = $"Unknown message type: {packet.type}", Timestamp = DateTime.Now.ToString("HH:mm") });
+                        Console.WriteLine($"[UI] Unknown message type: {packet.type}");
+                        Messages.Add(new ChatMessage 
+                        { 
+                            Username = "System", 
+                            Text = $"Unknown message type: {packet.type}", 
+                            Timestamp = DateTime.Now.ToString("HH:mm") 
+                        });
                         break;
                 }
 
                 ChatScrollViewer?.ScrollToEnd();
             }
+            catch (JsonException ex)
+            {
+                Console.WriteLine($"[UI] JSON parsing error: {ex.Message}");
+                Messages.Add(new ChatMessage 
+                { 
+                    Username = "System", 
+                    Text = $"Message parsing error", 
+                    Timestamp = DateTime.Now.ToString("HH:mm") 
+                });
+            }
             catch (Exception ex)
             {
-                Messages.Add(new ChatMessage { Username = "System", Text = $"Parsing error: {ex.Message}", Timestamp = DateTime.Now.ToString("HH:mm") });
+                Console.WriteLine($"[UI] Error processing message: {ex.Message}");
+                Messages.Add(new ChatMessage 
+                { 
+                    Username = "System", 
+                    Text = $"Error: {ex.Message}", 
+                    Timestamp = DateTime.Now.ToString("HH:mm") 
+                });
             }
         }
 
-        // Send button handler
         private async void SendButton_Click(object sender, RoutedEventArgs e)
         {
             await SendMessageAsync();
         }
 
-        // Enter to send, Shift+Enter to newline
         private async void MessageTextBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter && Keyboard.Modifiers != ModifierKeys.Shift)
@@ -189,14 +269,24 @@ namespace DisClient
             }
         }
 
-        // IMPORTANT: when connected we do NOT locally add a message to avoid double-echo.
-        // The server will broadcast it back and OnMessageReceived will display it.
         private async Task SendMessageAsync()
         {
             string text = MessageTextBox.Text.Trim();
             if (string.IsNullOrEmpty(text)) return;
-
-            if (client?.IsConnected == true)
+        
+            if (client?.IsConnected != true)
+            {
+                Messages.Add(new ChatMessage
+                {
+                    Username = "System",
+                    Text = "Cannot send message - not connected to server",
+                    Timestamp = DateTime.Now.ToString("HH:mm")
+                });
+                ChatScrollViewer?.ScrollToEnd();
+                return;
+            }
+        
+            try
             {
                 var chatPacket = new MessagePackage
                 {
@@ -204,33 +294,48 @@ namespace DisClient
                     from = username,
                     package = text
                 };
-
+        
+                if (text.StartsWith("<") && text.Contains(">"))
+                {
+                    int start = text.IndexOf('<');
+                    int end = text.IndexOf('>');
+                    if (start == 0 && end > start)
+                    {
+                        string targetUser = text.Substring(1, end - 1);
+                        chatPacket.to = targetUser; // set target user
+                        chatPacket.package = text.Substring(end + 1).Trim(); // message without the <username>
+                    }
+                }
+        
                 string json = JsonSerializer.Serialize(chatPacket);
                 await client.SendMessageAsync(json);
+        
+                Console.WriteLine($"[UI] Message sent: {text}");
             }
-            else
+            catch (Exception ex)
             {
-                // offline/local mode: show message locally
+                Console.WriteLine($"[UI] Error sending message: {ex.Message}");
                 Messages.Add(new ChatMessage
                 {
-                    Username = "Me",
-                    Text = text,
+                    Username = "System",
+                    Text = $"Failed to send message: {ex.Message}",
                     Timestamp = DateTime.Now.ToString("HH:mm")
                 });
             }
-
+        
             MessageTextBox.Clear();
             ChatScrollViewer?.ScrollToEnd();
         }
 
         private void MessageTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            // Placeholder visibility handled by XAML DataTrigger; keep typing logic here.
             if (string.IsNullOrWhiteSpace(MessageTextBox.Text))
             {
-                TypingIndicator.Visibility = Visibility.Collapsed;
-                isTyping = false;
-                _ = SendTypingStatus(false);
+                if (isTyping)
+                {
+                    isTyping = false;
+                    _ = SendTypingStatus(false);
+                }
                 return;
             }
 
@@ -242,32 +347,40 @@ namespace DisClient
 
             typingTimer.Stop();
             typingTimer.Start();
-            TypingIndicator.Visibility = Visibility.Visible;
         }
 
         private void TypingTimeout(object? sender, System.Timers.ElapsedEventArgs e)
         {
             Dispatcher.Invoke(() =>
             {
-                isTyping = false;
-                TypingIndicator.Visibility = Visibility.Collapsed;
+                if (isTyping)
+                {
+                    isTyping = false;
+                    _ = SendTypingStatus(false);
+                }
             });
-            _ = SendTypingStatus(false);
         }
 
         private async Task SendTypingStatus(bool typing)
         {
             if (client?.IsConnected == true)
             {
-                var typingPacket = new MessagePackage
+                try
                 {
-                    type = "typing",
-                    from = username,
-                    package = typing ? "true" : "false"
-                };
+                    var typingPacket = new MessagePackage
+                    {
+                        type = "typing",
+                        from = username,
+                        package = typing ? "true" : "false"
+                    };
 
-                string json = JsonSerializer.Serialize(typingPacket);
-                await client.SendMessageAsync(json);
+                    string json = JsonSerializer.Serialize(typingPacket);
+                    await client.SendMessageAsync(json);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[UI] Error sending typing status: {ex.Message}");
+                }
             }
         }
 
@@ -279,7 +392,10 @@ namespace DisClient
                 onlineUsers = users;
                 UpdateOnlineUsersList();
             }
-            catch { /* ignore parse errors */ }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UI] Error parsing users list: {ex.Message}");
+            }
         }
 
         private void HandleUserJoined(string user)
@@ -308,7 +424,11 @@ namespace DisClient
                 var listItem = new ListBoxItem
                 {
                     Content = user,
-                    Foreground = user == username ? Brushes.Blue : (isDarkMode ? new SolidColorBrush(Color.FromRgb(220, 221, 222)) : Brushes.Black),
+                    Foreground = user == username 
+                        ? Brushes.Blue 
+                        : (isDarkMode 
+                            ? new SolidColorBrush(Color.FromRgb(220, 221, 222)) 
+                            : Brushes.Black),
                     Margin = new Thickness(5, 2, 5, 2)
                 };
 
@@ -318,14 +438,25 @@ namespace DisClient
 
         private void HandleTyping(string user, string isTypingStr)
         {
-            if (user == username) return; // ignore our own typing
+            if (user == username) return;
 
             bool otherTyping = string.Equals(isTypingStr, "true", StringComparison.OrdinalIgnoreCase);
-            TypingIndicator.Text = otherTyping ? $"{user} is typing..." : string.Empty;
-            TypingIndicator.Visibility = otherTyping ? Visibility.Visible : Visibility.Collapsed;
+            
+            if (otherTyping)
+            {
+                TypingIndicator.Text = $"{user} is typing...";
+                TypingIndicator.Foreground = isDarkMode 
+                    ? new SolidColorBrush(Color.FromRgb(114, 118, 125)) 
+                    : new SolidColorBrush(Color.FromRgb(119, 119, 119));
+                TypingIndicator.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                TypingIndicator.Text = string.Empty;
+                TypingIndicator.Visibility = Visibility.Collapsed;
+            }
         }
 
-        // THEME: update dynamic resources so DataTemplate repaints instantly
         private void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
         {
             isDarkMode = !isDarkMode;
@@ -363,9 +494,12 @@ namespace DisClient
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            Console.WriteLine("[UI] Window closing");
+            
             if (client != null)
             {
                 client.MessageReceived -= OnMessageReceived;
+                client.Disconnected -= OnDisconnected;
                 client.Disconnect();
             }
 
@@ -375,17 +509,51 @@ namespace DisClient
 
         private void OnlineUsersListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-
+            if (OnlineUsersListBox.SelectedItem is ListBoxItem selectedItem && 
+                selectedItem.Content is string selectedUsername)
+            {
+                // cek kalau user klik dirinya sendiri
+                if (selectedUsername == username)
+                {
+                    OnlineUsersListBox.SelectedItem = null;
+                    return;
+                }
+        
+                // Setup PM prefix
+                string pmPrefix = $"<{selectedUsername}> ";
+                MessageTextBox.Text = pmPrefix;
+                MessageTextBox.CaretIndex = MessageTextBox.Text.Length;
+                MessageTextBox.Focus();
+        
+                // clear selection
+                OnlineUsersListBox.SelectedItem = null;
+                
+                Console.WriteLine($"[UI] PM mode activated for user: {selectedUsername}");
+            }
         }
 
         private void DisconnectButton_Click(object sender, RoutedEventArgs e)
         {
-            client.Disconnect();
+            Console.WriteLine("[UI] Manual disconnect requested");
+            
+            if (client != null)
+            {
+                client.Disconnect();
+            }
+            
             SendButton.IsEnabled = false;
             MessageTextBox.IsEnabled = false;
             TypingIndicator.Text = "Disconnected";
             TypingIndicator.Visibility = Visibility.Visible;
-            Close();
+            
+            Messages.Add(new ChatMessage 
+            { 
+                Username = "System", 
+                Text = "You have disconnected from the server", 
+                Timestamp = DateTime.Now.ToString("HH:mm") 
+            });
+            
+            ChatScrollViewer?.ScrollToEnd();
         }
     }
 
