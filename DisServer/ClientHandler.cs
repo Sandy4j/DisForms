@@ -61,22 +61,26 @@ namespace DisServer
                         
                         var packet = JsonSerializer.Deserialize<MessagePackage>(json_string, options);
 
-                        switch (packet.type)
+                        switch (packet.type.ToLower())
                         {
                             case "register":
-                                if (server.IsUsernameTaken(packet.from))
+                                Console.WriteLine($"Processing registration for username: {packet.from}");
+                                
+                                if (string.IsNullOrEmpty(packet.from))
                                 {
-                                    Console.WriteLine($"Registration rejected - username '{packet.from}' already taken");
-                                    await server.SendRegistrationResponse(this, false, "username_taken");
-                                    await Task.Delay(100);
-
+                                    await SendRegistrationResponse(false, "Username cannot be empty");
                                     CleanUp();
                                     return;
                                 }
 
+                                if (server.IsUsernameTaken(packet.from))
+                                {
+                                    await server.SendRegistrationResponse(this, false, "username_taken");
+                                    CleanUp();
+                                    return;
+                                }
                                 this.username = packet.from;
-                                Console.WriteLine($"Client {this.client_id} registered as {this.username}");
-                                
+                                await server.SendRegistrationResponse(this, true, "success");
                                 await server.BroadcastSystemMessage($"{this.username} joined the chat.", this);
                                 await server.BroadcastUsersList();
                                 break;
@@ -135,13 +139,21 @@ namespace DisServer
             }
             finally
             {
-                if (!string.IsNullOrEmpty(username)) 
-                {
-                    await server.BroadcastSystemMessage($"{username} left the chat.", this);
-                }
-
                 CleanUp();
             }
+        }
+
+        private async Task SendRegistrationResponse(bool success, string message)
+        {
+            var response = new MessagePackage
+            {
+                type = "registration_response",
+                from = "server",
+                package = message
+            };
+
+            string json = JsonSerializer.Serialize(response);
+            await SendMessageAsync(json);
         }
 
         public async Task SendMessageAsync(string message)
@@ -153,10 +165,16 @@ namespace DisServer
 
         private void CleanUp()
         {
+            Console.WriteLine($"Cleaning up client {username ?? client_id}");
             server.RemoveClient(this);
             stream?.Close();
             client?.Close();
          
+        }
+
+        public void SetUsername(string newUsername)
+        {
+            username = newUsername;
         }
     }
 }

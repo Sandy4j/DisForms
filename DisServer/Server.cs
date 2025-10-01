@@ -51,7 +51,6 @@ namespace DisServer
         public async Task StartAsync()
         {
             Console.WriteLine($"Server starting on {((IPEndPoint)listener.LocalEndpoint).Address}:{((IPEndPoint)listener.LocalEndpoint).Port}");
-
             listener.Start();
             Console.WriteLine("Server is running and listening for connections...");
 
@@ -59,20 +58,12 @@ namespace DisServer
             {
                 try
                 {
+                    Console.WriteLine("Waiting for new client connection...");
                     TcpClient temp_client = await listener.AcceptTcpClientAsync();
                     Console.WriteLine($"New client connection accepted from {temp_client.Client.RemoteEndPoint}");
 
                     ClientHandler temp_client_handler = new ClientHandler(temp_client, this);
-
-                    /*lock (clients)
-                    {
-                        clients.Add(temp_client_handler.client_id, temp_client_handler);
-                    }*/
-
-                    Console.WriteLine($"Total connected clients: {clients.Count}");
-
                     _ = Task.Run(async () => await temp_client_handler.HandleClientAsync());
-                    
                 }
                 catch (Exception ex)
                 {
@@ -246,9 +237,21 @@ namespace DisServer
             SaveChatLog();
         }
 
-
         public async Task BroadcastSystemMessage(string message, ClientHandler? client = null)
         {
+            if (client == null) return;  // Add this check
+
+            // First, check if username is taken before adding the client
+            if (!string.IsNullOrEmpty(client.username))
+            {
+                bool isUsernameTaken = IsUsernameTaken(client.username);
+                if (isUsernameTaken)
+                {
+                    await SendRegistrationResponse(client, false, "username_taken");
+                    return;
+                }
+            }
+
             Console.WriteLine($"Broadcasting system message: {message}");
 
             var package = new MessagePackage
@@ -266,6 +269,16 @@ namespace DisServer
             string json_package = System.Text.Json.JsonSerializer.Serialize(package, options);
             Console.WriteLine($"System message JSON: {json_package}");
 
+            // Add the client to the dictionary first
+            if (!clients.ContainsKey(client.client_id))
+            {
+                lock (clients)
+                {
+                    clients.Add(client.client_id, client);
+                }
+            }
+
+            // Then broadcast to other clients
             var targetClients = clients.Values
                 .Where(c => !string.IsNullOrEmpty(c.username) && c != client)
                 .ToList();
@@ -282,24 +295,14 @@ namespace DisServer
             {
                 await Task.WhenAll(tasks);
                 Console.WriteLine("System message broadcast completed");
+                
+                // Send success response to the new client
+                await SendRegistrationResponse(client, true, "success");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error broadcasting system message: {ex.Message}");
             }
-
-            if (clients.Count > 0)
-            {
-                foreach (var item in clients)
-                {
-                    if (item.Value.username != client.username) continue;
-
-                    RemoveClient(item.Value);
-                    return;
-                }
-            }
-
-            clients.Add(client.client_id, client);
         }
 
         public async Task BroadcastUsersList()
@@ -308,8 +311,6 @@ namespace DisServer
                 .Where(c => !string.IsNullOrEmpty(c.username))
                 .Select(c => c.username)
                 .ToList();
-
-            Console.WriteLine($"Broadcasting users list: [{string.Join(", ", usernames)}]");
 
             var package = new MessagePackage
             {
@@ -324,37 +325,26 @@ namespace DisServer
             };
 
             string json_package = System.Text.Json.JsonSerializer.Serialize(package, options);
-            Console.WriteLine($"Users list JSON: {json_package}");
 
-            // Send to all registered clients
             var registeredClients = clients.Values.Where(c => !string.IsNullOrEmpty(c.username)).ToList();
-            Console.WriteLine($"Sending users list to {registeredClients.Count} clients");
-            
             var tasks = new List<Task>();
             foreach (var item in registeredClients)
             {
                 tasks.Add(item.SendMessageAsync(json_package));
             }
-            
-            try
-            {
-                await Task.WhenAll(tasks);
-                Console.WriteLine("Users list broadcast completed");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error broadcasting users list: {ex.Message}");
-            }
+
+            await Task.WhenAll(tasks);
         }
 
         public bool IsUsernameTaken(string username)
         {
-            if (clients.Count < 2) return false;
+            if (string.IsNullOrEmpty(username)) return false;
 
             lock (clients)
             {
-                return clients.Values.Any(c =>
-                    !string.IsNullOrEmpty(c.username) &&
+                return clients.Values.Any(c => 
+                    c != null && 
+                    !string.IsNullOrEmpty(c.username) && 
                     c.username.Equals(username, StringComparison.OrdinalIgnoreCase));
             }
         }
@@ -439,6 +429,36 @@ namespace DisServer
             {
                 Console.WriteLine($"Error loading chat log: {ex.Message}");
             }
+        }
+
+        public async Task HandleRegistration(ClientHandler client, string username)
+        {
+            if (string.IsNullOrEmpty(username))
+            {
+                await SendRegistrationResponse(client, false, "invalid_username");
+                return;
+            }
+
+            if (IsUsernameTaken(username))
+            {
+                await SendRegistrationResponse(client, false, "username_taken");
+                return;
+            }
+
+            // Set username and add to clients
+            client.SetUsername(username);  // You'll need to add this method to ClientHandler
+    
+            lock (clients)
+            {
+                if (!clients.ContainsKey(client.client_id))
+                {
+                    clients.Add(client.client_id, client);
+                }
+            }
+
+            await SendRegistrationResponse(client, true, "success");
+            await BroadcastSystemMessage($"{username} joined the chat.", client);
+            await BroadcastUsersList();
         }
     }
 }

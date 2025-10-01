@@ -53,17 +53,33 @@ namespace DisClient
         {
             try
             {
+                Console.WriteLine($"Attempting to connect to {serverIP}:{port}");
                 tcpClient = new TcpClient();
                 await tcpClient.ConnectAsync(serverIP, port);
                 stream = tcpClient.GetStream();
+                Console.WriteLine("TCP connection established");
 
                 IsConnected = true;
                 _ = Task.Run(ListenForMessagesAsync);
 
+                // Send registration message
+                var registrationMessage = new MessagePackage
+                {
+                    type = "register",
+                    from = username,
+                    package = "",
+                    timestamp = DateTime.Now
+                };
+
+                string json = System.Text.Json.JsonSerializer.Serialize(registrationMessage);
+                await SendMessageAsync(json);
+                Console.WriteLine("Registration message sent");
+
                 return true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine($"Connection failed: {ex.Message}");
                 IsConnected = false;
                 return false;
             }

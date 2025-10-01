@@ -75,68 +75,6 @@ public partial class ClientLobby : Window
         }
     }
 
-    /*private async void ConnectButton_Click(object sender, RoutedEventArgs e)
-    {
-        //Validasi Input
-        if (string.IsNullOrWhiteSpace(UsernameTextBox.Text))
-        {
-            ShowStatus("Please enter a username.", true);
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(ServerIPTextBox.Text))
-        {
-            ShowStatus("Please enter server IP.", true);
-            return;
-        }
-
-        if (!int.TryParse(ServerPortTextBox.Text, out int port) || port <= 0 || port > 65535)
-        {
-            ShowStatus("Please enter a valid port number (1-65535).", true);
-            return;
-        }
-
-        ConnectButton.IsEnabled = false;
-        LoadingPanel.Visibility = Visibility.Visible;
-        ShowStatus("Connecting to server...", false);
-
-        try
-        {
-            Client testClient = new Client();
-            bool connected = await testClient.ConnectAsync(ServerIPTextBox.Text, port, UsernameTextBox.Text.Trim());
-            
-            if (connected)
-            {
-                ShowStatus("Connected successfully!", false);
-                await Task.Delay(500);
-                
-                MainWindow mainWindow = new MainWindow(
-                    testClient, 
-                    UsernameTextBox.Text.Trim(),
-                    ServerIPTextBox.Text,
-                    port
-                );
-                
-                mainWindow.Show();
-                this.Close();
-            }
-            else
-            {
-                ShowStatus("Failed to connect to server. Please check your connection details.", true);
-                testClient?.Disconnect();
-            }
-        }
-        catch (Exception ex)
-        {
-            ShowStatus($"Connection error: {ex.Message}", true);
-        }
-        finally
-        {
-            ConnectButton.IsEnabled = true;
-            LoadingPanel.Visibility = Visibility.Collapsed;
-        }
-    }*/
-
     private async void ConnectButton_Click(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(UsernameTextBox.Text))
@@ -193,30 +131,31 @@ public partial class ClientLobby : Window
 
             testClient.MessageReceived += OnRegistrationResponse;
 
-            // Send registration seperti biasa
+            // Send registration message
             var registrationPacket = new MessagePackage
             {
                 type = "register",
                 from = UsernameTextBox.Text.Trim(),
-                package = ""
+                package = "",
+                timestamp = DateTime.Now
             };
             string json = System.Text.Json.JsonSerializer.Serialize(registrationPacket);
             await testClient.SendMessageAsync(json);
 
-            // Tunggu response
-            var timeoutTask = Task.Delay(3000);
-            var completedTask = await Task.WhenAny(tcs.Task, timeoutTask);
+            // Wait for either success or timeout
+            var timeoutTask = Task.Delay(5000);
+            var completedTask = await Task.WhenAny(timeoutTask, tcs.Task);
 
             testClient.MessageReceived -= OnRegistrationResponse;
 
             if (completedTask == timeoutTask || registrationSuccess != true)
             {
-                ShowStatus("Username is already taken. Please choose another username.", true);
+                ShowStatus("Registration failed or timed out", true);
                 testClient?.Disconnect();
                 return;
             }
 
-            // Success - buka MainWindow seperti sebelumnya
+            // Success - buka MainWindow
             ShowStatus("Connected successfully!", false);
             await Task.Delay(500);
 
