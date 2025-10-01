@@ -122,8 +122,6 @@ namespace DisClient
                         Messages.Add(new ChatMessage { Username = "System", Text = packet.package ?? string.Empty, Timestamp = DateTime.Now.ToString("HH:mm") });
                         break;
                     case "chat":
-                        // When server broadcasts to all clients (including sender),
-                        // we avoid local-echo; just show the server message here.
                         Messages.Add(new ChatMessage
                         {
                             Username = packet.from ?? "Unknown",
@@ -131,7 +129,6 @@ namespace DisClient
                             Timestamp = (packet.timestamp?.ToString() ?? DateTime.Now.ToString("HH:mm"))
                         });
 
-                        // hide typing indicator for that user
                         if (packet.from == username)
                         {
                             TypingIndicator.Text = string.Empty;
