@@ -12,6 +12,7 @@ namespace DisServer
     public class ChatLog
     {
         public string client_id { get; set; }
+        public string username {  get; set; }
         public string message { get; set; }
         public DateTime time { get; set; }
     }
@@ -131,6 +132,7 @@ namespace DisServer
             {
                 type = "chat",
                 from = username,
+                to = string.Empty,
                 package = message,
                 timestamp = messageTime
             };
@@ -146,6 +148,7 @@ namespace DisServer
             var chat_log = new ChatLog
             {
                 client_id = client.client_id,
+                username = client.username,
                 message = message,
                 time = messageTime
             };
@@ -161,6 +164,75 @@ namespace DisServer
                 tasks.Add(item.SendMessageAsync(json_package));
             }
     
+            try
+            {
+                await Task.WhenAll(tasks);
+                Console.WriteLine("Chat message broadcast completed");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error broadcasting chat message: {ex.Message}");
+            }
+
+            SaveChatLog();
+        }
+
+        public async Task BroadcastPrivateChatMessage(string username, string message, ClientHandler? client = null)
+        {
+            if (client == null) return;
+
+            string target = string.Empty;
+            string main_message = string.Empty;
+
+            int start = message.IndexOf('<');
+            int end = message.IndexOf('>');
+            if (start > -1 && end > start)
+            {
+                start++;
+                int length = end - start;
+                target = message.Substring(start, length);
+            }
+
+            main_message = message.Substring(end + 1);
+            main_message = main_message.Trim();
+
+            var messageTime = DateTime.Now;
+            var package = new MessagePackage
+            {
+                type = "pm",
+                from = username,
+                to = target,
+                package = main_message,
+                timestamp = messageTime
+            };
+
+            var options = new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+            };
+
+            string json_package = System.Text.Json.JsonSerializer.Serialize(package, options);
+            Console.WriteLine($"Broadcasting chat message: {json_package}");
+
+            var chat_log = new ChatLog
+            {
+                client_id = client.client_id,
+                username = client.username,
+                message = message,
+                time = messageTime
+            };
+            messages.Add(chat_log);
+
+            // Send to all registered clients
+            var registeredClients = clients.Values.Where(c => !string.IsNullOrEmpty(c.username)).ToList();
+            Console.WriteLine($"Sending chat to {registeredClients.Count} registered clients");
+
+            var tasks = new List<Task>();
+            foreach (var item in registeredClients)
+            {
+                tasks.Add(item.SendMessageAsync(json_package));
+            }
+
             try
             {
                 await Task.WhenAll(tasks);

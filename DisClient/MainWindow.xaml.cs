@@ -105,7 +105,6 @@ namespace DisClient
                 Dispatcher.Invoke(() => OnMessageReceived(message));
                 return;
             }
-
             try
             {
                 var packet = JsonSerializer.Deserialize<MessagePackage>(message);
@@ -122,7 +121,6 @@ namespace DisClient
                     case "system":
                         Messages.Add(new ChatMessage { Username = "System", Text = packet.package ?? string.Empty, Timestamp = DateTime.Now.ToString("HH:mm") });
                         break;
-
                     case "chat":
                         // When server broadcasts to all clients (including sender),
                         // we avoid local-echo; just show the server message here.
@@ -140,23 +138,28 @@ namespace DisClient
                             TypingIndicator.Visibility = Visibility.Collapsed;
                         }
                         break;
-
                     case "users_list":
                         HandleUsersList(packet.package);
                         break;
-
                     case "user_joined":
                         HandleUserJoined(packet.package);
                         break;
-
                     case "user_left":
                         HandleUserLeft(packet.package);
                         break;
-
                     case "typing":
                         HandleTyping(packet.from, packet.package);
                         break;
+                    case "pm":
+                        if (packet.to != username && packet.from != username) return;
 
+                        Messages.Add(new ChatMessage
+                        {
+                            Username = packet.from ?? "Unknown",
+                            Text = packet.package ?? string.Empty,
+                            Timestamp = (packet.timestamp?.ToString() ?? DateTime.Now.ToString("HH:mm"))
+                        });
+                        break;
                     default:
                         Messages.Add(new ChatMessage { Username = "System", Text = $"Unknown message type: {packet.type}", Timestamp = DateTime.Now.ToString("HH:mm") });
                         break;

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace DisClient
 {
-    internal class MessagePackage
+    /*internal class MessagePackage
     {
         [JsonPropertyName("type")]
         public string type { get; set; } = string.Empty;
@@ -18,6 +18,24 @@ namespace DisClient
 
         [JsonPropertyName("package")]
         public string package { get; set; } = string.Empty;
+
+        [JsonPropertyName("timestamp")]
+        public DateTime? timestamp { get; set; }
+    }*/
+
+    internal class MessagePackage
+    {
+        [JsonPropertyName("type")]
+        public string type { get; set; }
+
+        [JsonPropertyName("to")]
+        public string? to { get; set; }
+
+        [JsonPropertyName("from")]
+        public string from { get; set; }
+
+        [JsonPropertyName("package")]
+        public string? package { get; set; }
 
         [JsonPropertyName("timestamp")]
         public DateTime? timestamp { get; set; }

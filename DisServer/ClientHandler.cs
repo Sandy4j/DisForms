@@ -70,11 +70,9 @@ namespace DisServer
                                 await server.BroadcastSystemMessage($"{this.username} joined the chat.", this);
                                 await server.BroadcastUsersList();
                                 break;
-                                
                             case "system":
                                 Console.WriteLine($"System message from {username ?? client_id}: {packet.package}");
                                 break;
-                            
                             case "chat":
                                 if (string.IsNullOrEmpty(this.username)) 
                                 {
@@ -82,9 +80,12 @@ namespace DisServer
                                     break;
                                 }
                                 Console.WriteLine($"Chat message from {this.username}: {packet.package}");
-                                await server.BroadcastChatMessage(this.username, packet.package, this);
+
+                                if (packet.from != string.Empty)
+                                    await server.BroadcastPrivateChatMessage(this.username, packet.package, this);
+                                else
+                                    await server.BroadcastChatMessage(this.username, packet.package, this);
                                 break;
-                            
                             case "typing":
                                 if (string.IsNullOrEmpty(this.username))
                                 {
@@ -96,12 +97,16 @@ namespace DisServer
                                 Console.WriteLine($"Typing status from {this.username}: {isTyping}");
                                 await server.BroadcastTypingStatus(this.username, isTyping, this);
                                 break;
-                            
-                                
-                            case "pm":
+                            /*case "pm":
+                                Console.WriteLine("---------------------------------------------------------------");
+                                if (string.IsNullOrEmpty(this.username))
+                                {
+                                    Console.WriteLine($"Chat message rejected - user not registered: {client_id}");
+                                    break;
+                                }
                                 Console.WriteLine($"Private message from {username ?? client_id}: {packet.package}");
-                                break;
-                                
+                                await server.BroadcastPrivateChatMessage(this.username, packet.package, this);
+                                break;*/
                             default:
                                 Console.WriteLine($"Unknown message type: {packet.type}");
                                 break;
