@@ -64,6 +64,17 @@ namespace DisServer
                         switch (packet.type)
                         {
                             case "register":
+                                if (server.IsUsernameTaken(packet.from))
+                                {
+                                    Console.WriteLine($"Registration rejected - username '{packet.from}' already taken");
+                                    await server.SendRegistrationResponse(this, false, "username_taken");
+                                    await Task.Delay(100);
+
+                                    // Disconnect client yang username-nya duplicate
+                                    CleanUp();
+                                    return;
+                                }
+
                                 this.username = packet.from;
                                 Console.WriteLine($"Client {this.client_id} registered as {this.username}");
                                 
