@@ -96,15 +96,15 @@ namespace DisServer
                                 break;
 
                             case "chat":
-                                if (string.IsNullOrEmpty(this.username)) 
+                                if (string.IsNullOrEmpty(this.username))
                                 {
                                     Console.WriteLine($"[REJECT] Chat message rejected - user not registered: {client_id}");
                                     break;
                                 }
                                 Console.WriteLine($"[CHAT] From {this.username}: {packet.package}");
-
+                            
                                 if (!string.IsNullOrEmpty(packet.to))
-                                    await server.BroadcastPrivateChatMessage(this.username, packet.package, this);
+                                    await server.BroadcastPrivateChatMessage(this.username, packet.package, packet.to, this);
                                 else
                                     await server.BroadcastChatMessage(this.username, packet.package, this);
                                 break;

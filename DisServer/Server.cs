@@ -232,66 +232,51 @@ namespace DisServer
             SaveChatLog();
         }
 
-        public async Task BroadcastPrivateChatMessage(string username, string message, ClientHandler? client = null)
+        public async Task BroadcastPrivateChatMessage(string username, string message, string target, ClientHandler? client = null)
         {
             if (client == null) return;
-        
-            string target = string.Empty;
-            string main_message = string.Empty;
-        
-            int start = message.IndexOf('<');
-            int end = message.IndexOf('>');
-            if (start > -1 && end > start)
-            {
-                start++;
-                int length = end - start;
-                target = message.Substring(start, length);
-            }
-        
-            main_message = message.Substring(end + 1);
-            main_message = main_message.Trim();
-        
+
             var messageTime = DateTime.Now;
             var package = new MessagePackage
             {
                 type = "pm",
                 from = username,
                 to = target,
-                package = main_message,
+                package = message, // message udah clean dari client
                 timestamp = messageTime
             };
-        
+
             var options = new System.Text.Json.JsonSerializerOptions
             {
                 PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
             };
-        
+
             string json_package = System.Text.Json.JsonSerializer.Serialize(package, options);
             Console.WriteLine($"[BROADCAST] Private message: {json_package}");
-        
+
             var chat_log = new ChatLog
             {
                 client_id = client.client_id,
                 username = client.username,
-                message = message,
+                message = $"<{target}> {message}", // save dengan format lengkap
                 time = messageTime
             };
             messages.Add(chat_log);
-        
+
             // kirim ke target user dan pengirim
             var targetClients = clients.Values
                 .Where(c => !string.IsNullOrEmpty(c.username) && 
-                           (c.username == username || c.username == target))
+                            (c.username == username || c.username == target))
                 .ToList();
-        
+
             Console.WriteLine($"[BROADCAST] Sending PM to {targetClients.Count} clients (sender + target)");
-        
+
             var tasks = new List<Task>();
             foreach (var item in targetClients)
             {
                 tasks.Add(item.SendMessageAsync(json_package));
             }
-        
+
             try
             {
                 await Task.WhenAll(tasks);
@@ -301,7 +286,7 @@ namespace DisServer
             {
                 Console.WriteLine($"[ERROR] Error broadcasting private message: {ex.Message}");
             }
-        
+
             SaveChatLog();
         }
 
