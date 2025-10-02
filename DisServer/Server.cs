@@ -396,6 +396,35 @@ namespace DisServer
             }
         }
 
+        public bool IsUsernameTaken(string username)
+        {
+            lock (clients)
+            {
+                return clients.Values.Any(c =>
+                    !string.IsNullOrEmpty(c.username) &&
+                    c.username.Equals(username, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        public async Task SendRegistrationResponse(ClientHandler client, bool success, string message)
+        {
+            var package = new MessagePackage
+            {
+                type = "registration_response",
+                from = "server",
+                package = message,
+                timestamp = DateTime.Now
+            };
+
+            var options = new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+            };
+
+            string json_package = System.Text.Json.JsonSerializer.Serialize(package, options);
+            await client.SendMessageAsync(json_package);
+        }
+
         public void RemoveClient(ClientHandler? client = null)
         {
             if (client == null) return;

@@ -9,6 +9,9 @@ namespace DisClient;
 
 public partial class ClientLobby : Window
 {
+    /*private bool registrationSuccess;
+    private TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();*/
+
     public ClientLobby()
     {
         InitializeComponent();
@@ -75,7 +78,127 @@ public partial class ClientLobby : Window
         }
     }
 
+    /*private void OnRegistrationResponse(string message)
+    {
+        try
+        {
+            var packet = System.Text.Json.JsonSerializer.Deserialize<MessagePackage>(message);
+            if (packet?.type == "registration_response")
+            {
+                registrationSuccess = packet.package == "success";
+                tcs.TrySetResult(true);
+            }
+        }
+        catch { }
+    }*/
+
     private async void ConnectButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(UsernameTextBox.Text))
+        {
+            ShowStatus("Please enter a username.", true);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(ServerIPTextBox.Text))
+        {
+            ShowStatus("Please enter server IP.", true);
+            return;
+        }
+
+        if (!int.TryParse(ServerPortTextBox.Text, out int port) || port <= 0 || port > 65535)
+        {
+            ShowStatus("Please enter a valid port number (1-65535).", true);
+            return;
+        }
+
+        ConnectButton.IsEnabled = false;
+        LoadingPanel.Visibility = Visibility.Visible;
+        ShowStatus("Connecting to server...", false);
+
+        try
+        {
+            Client testClient = new Client();
+            bool connected = await testClient.ConnectAsync(ServerIPTextBox.Text, port, UsernameTextBox.Text.Trim());
+
+            if (!connected)
+            {
+                ShowStatus("Failed to connect to server.", true);
+                testClient?.Disconnect();
+                return;
+            }
+
+            bool registrationSuccess = false;
+            TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();
+
+            void OnRegistrationResponse(string message)
+            {
+                try
+                {
+                    var packet = System.Text.Json.JsonSerializer.Deserialize<MessagePackage>(message);
+                    if (packet?.type == "registration_response")
+                    {
+                        registrationSuccess = packet.package == "success";
+                        tcs.TrySetResult(true);
+                    }
+                }
+                catch { }
+            }
+
+            testClient.MessageReceived += OnRegistrationResponse;
+
+            // Send registration seperti biasa
+            Console.WriteLine("KIRIM PESAN KE SERVER------------------------------------------------");
+            var registrationPacket = new MessagePackage
+            {
+                type = "check_username",
+                from = UsernameTextBox.Text.Trim(),
+                package = ""
+            };
+            string json = System.Text.Json.JsonSerializer.Serialize(registrationPacket);
+            await testClient.SendMessageAsync(json);
+
+            // Tunggu response
+            var timeoutTask = Task.Delay(3000);
+            var completedTask = await Task.WhenAny(tcs.Task, timeoutTask);
+
+            //testClient.MessageReceived -= OnRegistrationResponse;
+
+            if (completedTask == timeoutTask || registrationSuccess != true)
+            {
+                ShowStatus("Username is already taken. Please choose another username.", true);
+                testClient?.Disconnect();
+                return;
+            }
+
+            // Success - buka MainWindow seperti sebelumnya
+            ShowStatus("Connected successfully!", false);
+            await Task.Delay(500);
+
+            MainWindow mainWindow = new MainWindow(
+                testClient,
+                UsernameTextBox.Text.Trim(),
+                ServerIPTextBox.Text,
+                port
+            );
+
+            mainWindow.Show();
+            this.Close();
+
+            testClient.MessageReceived -= OnRegistrationResponse;
+        }
+        catch (Exception ex)
+        {
+            ShowStatus($"Connection error: {ex.Message}", true);
+        }
+        finally
+        {
+            ConnectButton.IsEnabled = true;
+            LoadingPanel.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    /*private async void ConnectButton_Click(object sender, RoutedEventArgs e)
     {
         //Validasi Input
         if (string.IsNullOrWhiteSpace(UsernameTextBox.Text))
@@ -135,7 +258,7 @@ public partial class ClientLobby : Window
             ConnectButton.IsEnabled = true;
             LoadingPanel.Visibility = Visibility.Collapsed;
         }
-    }
+    }*/
 
     private void ShowStatus(string message, bool isError)
     {
