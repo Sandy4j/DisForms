@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using System.Text.Json;
+using System.IO;
 
 namespace DisServer
 {
@@ -13,6 +14,8 @@ namespace DisServer
         private readonly TcpClient client;
         private readonly Server server;
         private readonly NetworkStream stream;
+        private StreamReader reader;
+        private StreamWriter writer;
         public string client_id { get; private set; }
         public string? username { get; private set; }
         public string ip { get; private set; }
@@ -25,32 +28,43 @@ namespace DisServer
             this.client = client;
             this.server = server;
             stream = client.GetStream();
+            
+            // Setup StreamReader/Writer untuk newline-delimited JSON
+            reader = new StreamReader(stream, Encoding.UTF8);
+            writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+            
             client_id = Guid.NewGuid().ToString();
             ip = endpoint.Address.ToString();
             port = endpoint.Port;
             
-            Console.WriteLine($"New client connected: {client_id} from {ip}:{port}");
+            Console.WriteLine($"[CONNECT] New client: {client_id} from {ip}:{port}");
         }
 
         public async Task HandleClientAsync()
         {
-            byte[] buffer = new byte[4096];
-            Console.WriteLine($"Started handling client {client_id}");
+            Console.WriteLine($"[START] Started handling client {client_id}");
 
             try
             {
                 while (client.Connected)
                 {
-                    int bytes_read = await stream.ReadAsync(buffer, 0, buffer.Length);
+                    // Read line-by-line (newline-delimited JSON)
+                    string? json_string = await reader.ReadLineAsync();
 
-                    if (bytes_read == 0) 
+                    // null berarti stream closed
+                    if (json_string == null) 
                     {
-                        Console.WriteLine($"Client {client_id} disconnected (0 bytes)");
+                        Console.WriteLine($"[DISCONNECT] Client {username ?? client_id} disconnected (stream closed)");
                         break;
                     }
 
-                    string json_string = Encoding.UTF8.GetString(buffer, 0, bytes_read);
-                    Console.WriteLine($"Received from client {client_id}: {json_string}");
+                    // Skip kotak kosong
+                    if (string.IsNullOrWhiteSpace(json_string))
+                    {
+                        continue;
+                    }
+
+                    Console.WriteLine($"[RECEIVE] From {username ?? client_id}: {json_string}");
 
                     try
                     {
@@ -61,49 +75,71 @@ namespace DisServer
                         
                         var packet = JsonSerializer.Deserialize<MessagePackage>(json_string, options);
 
+                        if (packet == null)
+                        {
+                            Console.WriteLine($"[ERROR] Failed to deserialize packet from {username ?? client_id}");
+                            continue;
+                        }
+
                         switch (packet.type)
                         {
                             case "register":
                                 this.username = packet.from;
-                                Console.WriteLine($"Client {this.client_id} registered as {this.username}");
+                                Console.WriteLine($"[REGISTER] Client {this.client_id} registered as '{this.username}'");
                                 
                                 await server.BroadcastSystemMessage($"{this.username} joined the chat.", this);
                                 await server.BroadcastUsersList();
                                 break;
-                                
+
                             case "system":
-                                Console.WriteLine($"System message from {username ?? client_id}: {packet.package}");
+                                Console.WriteLine($"[SYSTEM] From {username ?? client_id}: {packet.package}");
                                 break;
-                            
+
                             case "chat":
-                                if (string.IsNullOrEmpty(this.username)) 
+                                if (string.IsNullOrEmpty(this.username))
                                 {
-                                    Console.WriteLine($"Chat message rejected - user not registered: {client_id}");
+                                    Console.WriteLine($"[REJECT] Chat message rejected - user not registered: {client_id}");
                                     break;
                                 }
-                                Console.WriteLine($"Chat message from {this.username}: {packet.package}");
-                                await server.BroadcastChatMessage(this.username, packet.package, this);
+                                Console.WriteLine($"[CHAT] From {this.username}: {packet.package}");
+                            
+                                if (!string.IsNullOrEmpty(packet.to))
+                                    await server.BroadcastPrivateChatMessage(this.username, packet.package, packet.to, this);
+                                else
+                                    await server.BroadcastChatMessage(this.username, packet.package, this);
                                 break;
+
+                            case "typing":
+                                if (string.IsNullOrEmpty(this.username))
+                                {
+                                    Console.WriteLine($"[REJECT] Typing status rejected - user not registered: {client_id}");
+                                    break;
+                                }
                                 
-                            case "pm":
-                                Console.WriteLine($"Private message from {username ?? client_id}: {packet.package}");
+                                bool isTyping = string.Equals(packet.package, "true", StringComparison.OrdinalIgnoreCase);
+                                Console.WriteLine($"[TYPING] From {this.username}: {isTyping}");
+                                await server.BroadcastTypingStatus(this.username, isTyping, this);
                                 break;
-                                
+
                             default:
-                                Console.WriteLine($"Unknown message type: {packet.type}");
+                                Console.WriteLine($"[WARN] Unknown message type '{packet.type}' from {username ?? client_id}");
                                 break;
                         }
                     }
                     catch (JsonException ex)
                     {
-                        Console.WriteLine($"JSON parsing error from client {client_id}: {ex.Message}");
-                        Console.WriteLine($"Raw message: {json_string}");
+                        Console.WriteLine($"[ERROR] JSON parsing error from {username ?? client_id}: {ex.Message}");
+                        Console.WriteLine($"[ERROR] Raw message: {json_string}");
                     }
                 }
             }
+            catch (IOException ex)
+            {
+                Console.WriteLine($"[ERROR] IO error for {username ?? client_id}: {ex.Message}");
+            }
             catch (Exception ex)
             {
-                Console.WriteLine($"Client error [{username ?? client_id}]: {ex.Message}");
+                Console.WriteLine($"[ERROR] Client error [{username ?? client_id}]: {ex.GetType().Name} - {ex.Message}");
             }
             finally
             {
@@ -118,17 +154,49 @@ namespace DisServer
 
         public async Task SendMessageAsync(string message)
         {
-            byte[] buffer = Encoding.UTF8.GetBytes(message);
-            await stream.WriteAsync(buffer, 0, buffer.Length);
-            await stream.FlushAsync();
+            try
+            {
+                // Kirim message dengan newline delimiter
+                await writer.WriteLineAsync(message);
+                // AutoFlush = true, jadi tidak perlu manual flush
+            }
+            catch (IOException ex)
+            {
+                Console.WriteLine($"[ERROR] Failed to send message to {username ?? client_id}: {ex.Message}");
+                // Jangan throw, biar tidak mematikan caller thread
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Unexpected error sending to {username ?? client_id}: {ex.GetType().Name} - {ex.Message}");
+            }
+        }
+
+        // Method untuk force close dari server (saat shutdown)
+        public void ForceClose()
+        {
+            Console.WriteLine($"[FORCE_CLOSE] Forcing close for {username ?? client_id}");
+            CleanUp();
         }
 
         private void CleanUp()
         {
-            server.RemoveClient(this);
-            stream?.Close();
-            client?.Close();
-         
+            try
+            {
+                Console.WriteLine($"[CLEANUP] Cleaning up {username ?? client_id}");
+                
+                server.RemoveClient(this);
+                
+                reader?.Dispose();
+                writer?.Dispose();
+                stream?.Close();
+                client?.Close();
+                
+                Console.WriteLine($"[CLEANUP] Cleanup completed for {username ?? client_id}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Error during cleanup for {username ?? client_id}: {ex.Message}");
+            }
         }
     }
 }

@@ -26,7 +26,7 @@ public partial class ClientLobby : Window
             string localIP = GetLocalIPAddress();
             UserIPTextBox.Text = localIP;
         }
-        catch (Exception ex)
+        catch
         {
             UserIPTextBox.Text = "Unable to detect IP";
         }

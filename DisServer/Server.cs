@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Text.Json.Serialization;
 
@@ -12,6 +13,7 @@ namespace DisServer
     public class ChatLog
     {
         public string client_id { get; set; }
+        public string username {  get; set; }
         public string message { get; set; }
         public DateTime time { get; set; }
     }
@@ -20,15 +22,18 @@ namespace DisServer
     {
         [JsonPropertyName("type")]
         public string type { get; set; }
-        
+    
         [JsonPropertyName("to")]
         public string? to { get; set; }
-        
+    
         [JsonPropertyName("from")]
         public string from { get; set; }
-        
+    
         [JsonPropertyName("package")]
         public string? package { get; set; }
+    
+        [JsonPropertyName("timestamp")]
+        public DateTime? timestamp { get; set; }
     }
 
     internal class Server
@@ -36,43 +41,140 @@ namespace DisServer
         private readonly TcpListener listener;
         private readonly Dictionary<string, ClientHandler> clients = new Dictionary<string, ClientHandler>();
         private readonly List<ChatLog> messages = new List<ChatLog>();
+        private CancellationTokenSource cancellationTokenSource;
+        private bool isRunning = false;
 
         public Server(string ip, int port)
         {
             listener = new TcpListener(IPAddress.Parse(ip), port);
+            cancellationTokenSource = new CancellationTokenSource();
             LoadChatLog();
         }
 
         public async Task StartAsync()
         {
-            Console.WriteLine($"Server starting on {((IPEndPoint)listener.LocalEndpoint).Address}:{((IPEndPoint)listener.LocalEndpoint).Port}");
+            Console.WriteLine($"[SERVER] Starting on {((IPEndPoint)listener.LocalEndpoint).Address}:{((IPEndPoint)listener.LocalEndpoint).Port}");
 
             listener.Start();
-            Console.WriteLine("Server is running and listening for connections...");
+            isRunning = true;
+            Console.WriteLine("[SERVER] Server is running and listening for connections...");
 
-            while (true)
+            try
+            {
+                while (!cancellationTokenSource.Token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        // Gunakan AcceptTcpClientAsync dengan cancellation token
+                        TcpClient temp_client = await listener.AcceptTcpClientAsync();
+                        
+                        if (cancellationTokenSource.Token.IsCancellationRequested)
+                        {
+                            temp_client.Close();
+                            break;
+                        }
+
+                        Console.WriteLine($"[ACCEPT] New client connection from {temp_client.Client.RemoteEndPoint}");
+
+                        ClientHandler temp_client_handler = new ClientHandler(temp_client, this);
+
+                        Console.WriteLine($"[INFO] Total connected clients: {clients.Count}");
+
+                        _ = Task.Run(async () => await temp_client_handler.HandleClientAsync());
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Listener sudah di-stop, ini normal saat shutdown
+                        Console.WriteLine("[INFO] Listener stopped");
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!cancellationTokenSource.Token.IsCancellationRequested)
+                        {
+                            Console.WriteLine($"[ERROR] Error accepting client: {ex.Message}");
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                Console.WriteLine("[SERVER] Server loop ended");
+            }
+        }
+
+        public void Stop()
+        {
+            if (!isRunning) return;
+
+            Console.WriteLine("[SERVER] Stopping server...");
+            cancellationTokenSource.Cancel();
+            
+            // stop listener
+            listener.Stop();
+            
+            // force close untuk semua klien yang terhubung
+            List<ClientHandler> clientsList;
+            lock (clients)
+            {
+                clientsList = clients.Values.ToList();
+            }
+            
+            Console.WriteLine($"[SERVER] Closing {clientsList.Count} connected clients...");
+            foreach (var client in clientsList)
             {
                 try
                 {
-                    TcpClient temp_client = await listener.AcceptTcpClientAsync();
-                    Console.WriteLine($"New client connection accepted from {temp_client.Client.RemoteEndPoint}");
-
-                    ClientHandler temp_client_handler = new ClientHandler(temp_client, this);
-                    
-                    lock (clients)
-                    {
-                        clients.Add(temp_client_handler.client_id, temp_client_handler);
-                    }
-                    
-                    Console.WriteLine($"Total connected clients: {clients.Count}");
-
-                    // Handle client in background
-                    _ = Task.Run(async () => await temp_client_handler.HandleClientAsync());
+                    client.ForceClose();
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error accepting client: {ex.Message}");
+                    Console.WriteLine($"[ERROR] Error closing client {client.username ?? client.client_id}: {ex.Message}");
                 }
+            }
+            
+            isRunning = false;
+            Console.WriteLine("[SERVER] Server stopped");
+        }
+        
+        public async Task BroadcastTypingStatus(string username, bool isTyping, ClientHandler? sender = null)
+        {
+            var package = new MessagePackage
+            {
+                type = "typing",
+                from = username,
+                package = isTyping ? "true" : "false"
+            };
+        
+            var options = new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+            };
+        
+            string json_package = System.Text.Json.JsonSerializer.Serialize(package, options);
+            Console.WriteLine($"[BROADCAST] Typing status: {json_package}");
+        
+            // kirim ke semua klien yang terdaftar kecuali pengirim
+            var targetClients = clients.Values
+                .Where(c => !string.IsNullOrEmpty(c.username) && c != sender)
+                .ToList();
+        
+            Console.WriteLine($"[BROADCAST] Sending typing status to {targetClients.Count} clients");
+        
+            var tasks = new List<Task>();
+            foreach (var client in targetClients)
+            {
+                tasks.Add(client.SendMessageAsync(json_package));
+            }
+        
+            try
+            {
+                await Task.WhenAll(tasks);
+                Console.WriteLine("[BROADCAST] Typing status completed");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Error broadcasting typing status: {ex.Message}");
             }
         }
 
@@ -80,11 +182,14 @@ namespace DisServer
         {
             if (client == null) return;
 
+            var messageTime = DateTime.Now;
             var package = new MessagePackage
             {
                 type = "chat",
                 from = username,
-                package = message
+                to = string.Empty,
+                package = message,
+                timestamp = messageTime
             };
 
             var options = new System.Text.Json.JsonSerializerOptions
@@ -93,34 +198,93 @@ namespace DisServer
             };
 
             string json_package = System.Text.Json.JsonSerializer.Serialize(package, options);
-            Console.WriteLine($"Broadcasting chat message: {json_package}");
+            Console.WriteLine($"[BROADCAST] Chat message: {json_package}");
 
             var chat_log = new ChatLog
             {
                 client_id = client.client_id,
+                username = client.username,
                 message = message,
-                time = DateTime.Now
+                time = messageTime
             };
             messages.Add(chat_log);
 
-            // Send to all registered clients
+            // kirim ke semua klien yang terdaftar
             var registeredClients = clients.Values.Where(c => !string.IsNullOrEmpty(c.username)).ToList();
-            Console.WriteLine($"Sending chat to {registeredClients.Count} registered clients");
-            
+            Console.WriteLine($"[BROADCAST] Sending chat to {registeredClients.Count} registered clients");
+    
             var tasks = new List<Task>();
             foreach (var item in registeredClients)
             {
                 tasks.Add(item.SendMessageAsync(json_package));
             }
-            
+    
             try
             {
                 await Task.WhenAll(tasks);
-                Console.WriteLine("Chat message broadcast completed");
+                Console.WriteLine("[BROADCAST] Chat message completed");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error broadcasting chat message: {ex.Message}");
+                Console.WriteLine($"[ERROR] Error broadcasting chat message: {ex.Message}");
+            }
+
+            SaveChatLog();
+        }
+
+        public async Task BroadcastPrivateChatMessage(string username, string message, string target, ClientHandler? client = null)
+        {
+            if (client == null) return;
+
+            var messageTime = DateTime.Now;
+            var package = new MessagePackage
+            {
+                type = "pm",
+                from = username,
+                to = target,
+                package = message, // message udah clean dari client
+                timestamp = messageTime
+            };
+
+            var options = new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+            };
+
+            string json_package = System.Text.Json.JsonSerializer.Serialize(package, options);
+            Console.WriteLine($"[BROADCAST] Private message: {json_package}");
+
+            var chat_log = new ChatLog
+            {
+                client_id = client.client_id,
+                username = client.username,
+                message = $"<{target}> {message}", // save dengan format lengkap
+                time = messageTime
+            };
+            messages.Add(chat_log);
+
+            // kirim ke target user dan pengirim
+            var targetClients = clients.Values
+                .Where(c => !string.IsNullOrEmpty(c.username) && 
+                            (c.username == username || c.username == target))
+                .ToList();
+
+            Console.WriteLine($"[BROADCAST] Sending PM to {targetClients.Count} clients (sender + target)");
+
+            var tasks = new List<Task>();
+            foreach (var item in targetClients)
+            {
+                tasks.Add(item.SendMessageAsync(json_package));
+            }
+
+            try
+            {
+                await Task.WhenAll(tasks);
+                Console.WriteLine("[BROADCAST] Private message completed");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Error broadcasting private message: {ex.Message}");
             }
 
             SaveChatLog();
@@ -128,7 +292,7 @@ namespace DisServer
 
         public async Task BroadcastSystemMessage(string message, ClientHandler? client = null)
         {
-            Console.WriteLine($"Broadcasting system message: {message}");
+            Console.WriteLine($"[BROADCAST] System message: {message}");
 
             var package = new MessagePackage
             {
@@ -143,14 +307,13 @@ namespace DisServer
             };
 
             string json_package = System.Text.Json.JsonSerializer.Serialize(package, options);
-            Console.WriteLine($"System message JSON: {json_package}");
+            Console.WriteLine($"[BROADCAST] System JSON: {json_package}");
 
-            // Send to all registered clients except the sender
             var targetClients = clients.Values
                 .Where(c => !string.IsNullOrEmpty(c.username) && c != client)
                 .ToList();
             
-            Console.WriteLine($"Sending system message to {targetClients.Count} clients");
+            Console.WriteLine($"[BROADCAST] Sending system message to {targetClients.Count} clients");
             
             var tasks = new List<Task>();
             foreach (var item in targetClients)
@@ -161,11 +324,30 @@ namespace DisServer
             try
             {
                 await Task.WhenAll(tasks);
-                Console.WriteLine("System message broadcast completed");
+                Console.WriteLine("[BROADCAST] System message completed");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error broadcasting system message: {ex.Message}");
+                Console.WriteLine($"[ERROR] Error broadcasting system message: {ex.Message}");
+            }
+
+            if (client != null)
+            {
+                if (clients.Count > 0)
+                {
+                    foreach (var item in clients)
+                    {
+                        if (item.Value.username != client.username) continue;
+
+                        RemoveClient(item.Value);
+                        return;
+                    }
+                }
+
+                lock (clients)
+                {
+                    clients.Add(client.client_id, client);
+                }
             }
         }
 
@@ -176,7 +358,7 @@ namespace DisServer
                 .Select(c => c.username)
                 .ToList();
 
-            Console.WriteLine($"Broadcasting users list: [{string.Join(", ", usernames)}]");
+            Console.WriteLine($"[BROADCAST] Users list: [{string.Join(", ", usernames)}]");
 
             var package = new MessagePackage
             {
@@ -191,11 +373,11 @@ namespace DisServer
             };
 
             string json_package = System.Text.Json.JsonSerializer.Serialize(package, options);
-            Console.WriteLine($"Users list JSON: {json_package}");
+            Console.WriteLine($"[BROADCAST] Users list JSON: {json_package}");
 
-            // Send to all registered clients
+            // kirim ke semua klien yang terdaftar
             var registeredClients = clients.Values.Where(c => !string.IsNullOrEmpty(c.username)).ToList();
-            Console.WriteLine($"Sending users list to {registeredClients.Count} clients");
+            Console.WriteLine($"[BROADCAST] Sending users list to {registeredClients.Count} clients");
             
             var tasks = new List<Task>();
             foreach (var item in registeredClients)
@@ -206,11 +388,11 @@ namespace DisServer
             try
             {
                 await Task.WhenAll(tasks);
-                Console.WriteLine("Users list broadcast completed");
+                Console.WriteLine("[BROADCAST] Users list completed");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error broadcasting users list: {ex.Message}");
+                Console.WriteLine($"[ERROR] Error broadcasting users list: {ex.Message}");
             }
         }
 
@@ -218,16 +400,14 @@ namespace DisServer
         {
             if (client == null) return;
 
-            Console.WriteLine($"Removing client {client.username ?? client.client_id}");
+            Console.WriteLine($"[REMOVE] Removing client {client.username ?? client.client_id}");
 
             lock (clients)
             {
                 clients.Remove(client.client_id);
             }
             
-            Console.WriteLine($"Client {client.username ?? client.client_id} disconnected. Total clients: {clients.Count}");
-            
-            // Broadcast updated users list
+            Console.WriteLine($"[REMOVE] Client {client.username ?? client.client_id} removed. Total clients: {clients.Count}");
             _ = Task.Run(async () => await BroadcastUsersList());
         }
 
@@ -239,11 +419,11 @@ namespace DisServer
                 var options = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
                 string json = System.Text.Json.JsonSerializer.Serialize(messages, options);
                 System.IO.File.WriteAllText(file_name, json);
-                Console.WriteLine($"[INFO] Chat saved to: {file_name}");
+                Console.WriteLine($"[SAVE] Chat log saved: {file_name}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error saving chat log: {ex.Message}");
+                Console.WriteLine($"[ERROR] Error saving chat log: {ex.Message}");
             }
         }
 
@@ -255,7 +435,7 @@ namespace DisServer
 
                 if (!System.IO.File.Exists(file_name)) 
                 {
-                    Console.WriteLine("[INFO] No existing chat log found");
+                    Console.WriteLine("[LOAD] No existing chat log found");
                     return;
                 }
 
@@ -264,16 +444,16 @@ namespace DisServer
 
                 if (loadedMessages == null) 
                 {
-                    Console.WriteLine("[INFO] Chat log file is empty");
+                    Console.WriteLine("[LOAD] Chat log file is empty");
                     return;
                 }
 
                 messages.AddRange(loadedMessages);
-                Console.WriteLine($"[INFO] Loaded {loadedMessages.Count} messages from: {file_name}");
+                Console.WriteLine($"[LOAD] Loaded {loadedMessages.Count} messages from: {file_name}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error loading chat log: {ex.Message}");
+                Console.WriteLine($"[ERROR] Error loading chat log: {ex.Message}");
             }
         }
     }
