@@ -398,8 +398,6 @@ namespace DisServer
 
         public bool IsUsernameTaken(string username)
         {
-            if (clients.Count < 2) return false;
-
             lock (clients)
             {
                 return clients.Values.Any(c =>

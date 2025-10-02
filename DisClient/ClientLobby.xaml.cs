@@ -9,8 +9,8 @@ namespace DisClient;
 
 public partial class ClientLobby : Window
 {
-    private bool registrationSuccess;
-    private TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();
+    /*private bool registrationSuccess;
+    private TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();*/
 
     public ClientLobby()
     {
@@ -78,7 +78,7 @@ public partial class ClientLobby : Window
         }
     }
 
-    private void OnRegistrationResponse(string message)
+    /*private void OnRegistrationResponse(string message)
     {
         try
         {
@@ -90,7 +90,7 @@ public partial class ClientLobby : Window
             }
         }
         catch { }
-    }
+    }*/
 
     private async void ConnectButton_Click(object sender, RoutedEventArgs e)
     {
@@ -128,12 +128,30 @@ public partial class ClientLobby : Window
                 return;
             }
 
+            bool registrationSuccess = false;
+            TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();
+
+            void OnRegistrationResponse(string message)
+            {
+                try
+                {
+                    var packet = System.Text.Json.JsonSerializer.Deserialize<MessagePackage>(message);
+                    if (packet?.type == "registration_response")
+                    {
+                        registrationSuccess = packet.package == "success";
+                        tcs.TrySetResult(true);
+                    }
+                }
+                catch { }
+            }
+
             testClient.MessageReceived += OnRegistrationResponse;
 
             // Send registration seperti biasa
+            Console.WriteLine("KIRIM PESAN KE SERVER------------------------------------------------");
             var registrationPacket = new MessagePackage
             {
-                type = "register",
+                type = "check_username",
                 from = UsernameTextBox.Text.Trim(),
                 package = ""
             };
@@ -144,7 +162,7 @@ public partial class ClientLobby : Window
             var timeoutTask = Task.Delay(3000);
             var completedTask = await Task.WhenAny(tcs.Task, timeoutTask);
 
-            testClient.MessageReceived -= OnRegistrationResponse;
+            //testClient.MessageReceived -= OnRegistrationResponse;
 
             if (completedTask == timeoutTask || registrationSuccess != true)
             {
@@ -166,6 +184,8 @@ public partial class ClientLobby : Window
 
             mainWindow.Show();
             this.Close();
+
+            testClient.MessageReceived -= OnRegistrationResponse;
         }
         catch (Exception ex)
         {

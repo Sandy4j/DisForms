@@ -83,10 +83,27 @@ namespace DisServer
 
                         switch (packet.type)
                         {
+                            case "check_username":
+                                Console.WriteLine("MASUK CLINET ------------------------------------------------");
+                                if (server.IsUsernameTaken(packet.from))
+                                {
+                                    Console.WriteLine($"Registration rejected - username '{packet.from}' already taken");
+                                    await server.SendRegistrationResponse(this, false, "username_taken");
+                                    await Task.Delay(100);
+
+                                    CleanUp();
+                                    return;
+                                }
+                                packet.type = "register";
+                                await server.SendRegistrationResponse(this, true, "success");
+                                break;
                             case "register":
+                                Console.WriteLine("REGISTER ------------------------------------------------");
                                 this.username = packet.from;
-                                Console.WriteLine($"[REGISTER] Client {this.client_id} registered as '{this.username}'");
-                                
+                                Console.WriteLine($"Client {this.client_id} registered as {this.username}");
+
+                                //await server.SendRegistrationResponse(this, true, "success");
+
                                 await server.BroadcastSystemMessage($"{this.username} joined the chat.", this);
                                 await server.BroadcastUsersList();
                                 break;
